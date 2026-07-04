@@ -1,0 +1,16 @@
+<resources>
+    <color name="vector_25">#F9FBFF</color>
+    <color name="vector_50">#F3F6FF</color>
+    <color name="vector_100">#EDF2FE</color>
+    <color name="vector_200">#CEDCFD</color>
+    <color name="vector_300">#AFC7FC</color>
+    <color name="vector_400">#729CFA</color>
+    <color name="vector_500">#2E6CF7</color>
+    <color name="vector_600">#052E8A</color>
+    <color name="vector_700">#0846D1</color>
+    <color name="vector_800">#031F5C</color>
+    <color name="vector_900">#010819</color>
+    <color name="success">#107A5B</color>
+    <color name="warning">#A16207</color>
+    <color name="danger">#B91C1C</color>
+</resources>
