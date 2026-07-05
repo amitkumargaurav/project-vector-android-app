@@ -18,145 +18,156 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONObject
-import java.io.OutputStreamWriter
+import timber.log.Timber
 import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepository @Inject constructor(
-    private val tokenStore: TokenStore,
+  private val tokenStore: TokenStore,
 ) {
-    private val refreshHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .apply {
-            if (BuildConfig.FLAVOR == "dev") {
-                addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
-            }
+  private val authHttpClient = OkHttpClient.Builder()
+    .connectTimeout(15, TimeUnit.SECONDS)
+    .readTimeout(15, TimeUnit.SECONDS)
+    .apply {
+      if (BuildConfig.DEBUG) {
+        addInterceptor(
+          HttpLoggingInterceptor { message -> Timber.tag(OKHTTP_LOG_TAG).d(message) }
+            .setLevel(HttpLoggingInterceptor.Level.BODY),
+        )
+      }
+    }
+    .build()
+
+  private val refreshMutex = Mutex()
+  private var refreshInFlight: CompletableDeferred<Result<AuthSession>>? = null
+  private val _sessionInvalidated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+  val sessionInvalidated: SharedFlow<Unit> = _sessionInvalidated.asSharedFlow()
+
+  suspend fun exchangeGoogleIdToken(idToken: String): Result<AuthSession> =
+    withContext(Dispatchers.IO) {
+      runCatching {
+        if (BuildConfig.VECTOR_BACKEND_URL.isBlank()) {
+          error("VECTOR_BACKEND_URL is not configured")
         }
-        .build()
 
-    private val refreshMutex = Mutex()
-    private var refreshInFlight: CompletableDeferred<Result<AuthSession>>? = null
-    private val _sessionInvalidated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val sessionInvalidated: SharedFlow<Unit> = _sessionInvalidated.asSharedFlow()
+        val request = Request.Builder()
+          .url("${BuildConfig.VECTOR_BACKEND_URL.trimEnd('/')}/auth/google")
+          .post(JSONObject().put("idToken", idToken).toString().toRequestBody(JSON))
+          .header("Accept", "application/json")
+          .build()
 
-    suspend fun exchangeGoogleIdToken(idToken: String): Result<AuthSession> = withContext(Dispatchers.IO) {
-        runCatching {
-            if (BuildConfig.VECTOR_BACKEND_URL.isBlank()) {
-                error("VECTOR_BACKEND_URL is not configured")
-            }
-
-            val connection = (URL("${BuildConfig.VECTOR_BACKEND_URL.trimEnd('/')}/auth/google").openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 15_000
-                readTimeout = 100_000
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Accept", "application/json")
-            }
-
-            OutputStreamWriter(connection.outputStream).use { writer ->
-                writer.write(JSONObject().put("idToken", idToken).toString())
-            }
-
-            val body = if (connection.responseCode in 200..299) {
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } else {
-                val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                error("Login failed (${connection.responseCode})${errorBody.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()}")
-            }
-
-            val json = JSONObject(body)
-            AuthSession(
-                accessToken = json.requireString("accessToken"),
-                refreshToken = json.requireString("refreshToken"),
-            ).also(tokenStore::storeSession)
+        val body = authHttpClient.newCall(request).execute().use { response ->
+          val responseBody = response.body?.string().orEmpty()
+          if (response.isSuccessful) {
+            responseBody
+          } else {
+            error(
+              "Login failed (${response.code})${
+                responseBody.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
+              }"
+            )
+          }
         }
+
+        val json = JSONObject(body)
+        AuthSession(
+          accessToken = json.requireString("accessToken"),
+          refreshToken = json.requireString("refreshToken"),
+        ).also(tokenStore::storeSession)
+      }
     }
 
-    suspend fun refreshAuthToken(): Result<AuthSession> {
-        var shouldStartRefresh = false
-        val deferred = refreshMutex.withLock {
-            refreshInFlight ?: CompletableDeferred<Result<AuthSession>>().also {
-                refreshInFlight = it
-                shouldStartRefresh = true
-            }
-        }
-
-        if (!shouldStartRefresh) return deferred.await()
-
-        return try {
-            val result = refreshAuthTokenInternal()
-            deferred.complete(result)
-            result
-        } catch (error: CancellationException) {
-            deferred.completeExceptionally(error)
-            throw error
-        } catch (error: Throwable) {
-            val result = Result.failure<AuthSession>(error)
-            deferred.complete(result)
-            result
-        } finally {
-            refreshMutex.withLock {
-                if (refreshInFlight === deferred) refreshInFlight = null
-            }
-        }
+  suspend fun refreshAuthToken(): Result<AuthSession> {
+    var shouldStartRefresh = false
+    val deferred = refreshMutex.withLock {
+      refreshInFlight ?: CompletableDeferred<Result<AuthSession>>().also {
+        refreshInFlight = it
+        shouldStartRefresh = true
+      }
     }
 
-    private suspend fun refreshAuthTokenInternal(): Result<AuthSession> = withContext(Dispatchers.IO) {
-        runCatching {
-            if (BuildConfig.VECTOR_BACKEND_URL.isBlank()) {
-                error("VECTOR_BACKEND_URL is not configured")
-            }
+    if (!shouldStartRefresh) return deferred.await()
 
-            val previousRefreshToken = tokenStore.getRefreshToken()?.takeIf { it.isNotBlank() }
-                ?: throw RefreshTokenRejectedException("Refresh token is missing")
+    return try {
+      val result = refreshAuthTokenInternal()
+      deferred.complete(result)
+      result
+    } catch (error: CancellationException) {
+      deferred.completeExceptionally(error)
+      throw error
+    } catch (error: Throwable) {
+      val result = Result.failure<AuthSession>(error)
+      deferred.complete(result)
+      result
+    } finally {
+      refreshMutex.withLock {
+        if (refreshInFlight === deferred) refreshInFlight = null
+      }
+    }
+  }
 
-            val request = Request.Builder()
-                .url("${BuildConfig.VECTOR_BACKEND_URL.trimEnd('/')}/auth/refresh")
-                .post(JSONObject().put("refreshToken", previousRefreshToken).toString().toRequestBody(JSON))
-                .header("Accept", "application/json")
-                .build()
-
-            val body = refreshHttpClient.newCall(request).execute().use { response ->
-                val responseBody = response.body?.string().orEmpty()
-                if (response.isSuccessful) {
-                    responseBody
-                } else {
-                    if (response.code == HttpURLConnection.HTTP_UNAUTHORIZED || response.code == HttpURLConnection.HTTP_FORBIDDEN) {
-                        throw RefreshTokenRejectedException("Refresh token was rejected")
-                    }
-                    error("Refresh failed (${response.code})${responseBody.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()}")
-                }
-            }
-
-            if (body.isBlank()) error("Refresh response is empty")
-
-            val json = JSONObject(body)
-            val accessToken = json.requireString("accessToken")
-            val refreshToken = json.requireString("refreshToken")
-            AuthSession(
-                accessToken = accessToken,
-                refreshToken = refreshToken,
-            ).also {
-                tokenStore.storeSession(it)
-            }
-        }.onFailure {
-            tokenStore.clear()
-            _sessionInvalidated.tryEmit(Unit)
+  private suspend fun refreshAuthTokenInternal(): Result<AuthSession> =
+    withContext(Dispatchers.IO) {
+      runCatching {
+        if (BuildConfig.VECTOR_BACKEND_URL.isBlank()) {
+          error("VECTOR_BACKEND_URL is not configured")
         }
+
+        val previousRefreshToken = tokenStore.getRefreshToken()?.takeIf { it.isNotBlank() }
+          ?: throw RefreshTokenRejectedException("Refresh token is missing")
+
+        val request = Request.Builder()
+          .url("${BuildConfig.VECTOR_BACKEND_URL.trimEnd('/')}/auth/refresh")
+          .post(
+            JSONObject().put("refreshToken", previousRefreshToken).toString().toRequestBody(JSON)
+          )
+          .header("Accept", "application/json")
+          .build()
+
+        val body = authHttpClient.newCall(request).execute().use { response ->
+          val responseBody = response.body?.string().orEmpty()
+          if (response.isSuccessful) {
+            responseBody
+          } else {
+            if (response.code == HttpURLConnection.HTTP_UNAUTHORIZED || response.code == HttpURLConnection.HTTP_FORBIDDEN) {
+              throw RefreshTokenRejectedException("Refresh token was rejected")
+            }
+            error(
+              "Refresh failed (${response.code})${
+                responseBody.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
+              }"
+            )
+          }
+        }
+
+        if (body.isBlank()) error("Refresh response is empty")
+
+        val json = JSONObject(body)
+        val accessToken = json.requireString("accessToken")
+        val refreshToken = json.requireString("refreshToken")
+        AuthSession(
+          accessToken = accessToken,
+          refreshToken = refreshToken,
+        ).also {
+          tokenStore.storeSession(it)
+        }
+      }.onFailure {
+        tokenStore.clear()
+        _sessionInvalidated.tryEmit(Unit)
+      }
     }
 
-    private fun JSONObject.requireString(name: String): String = optString(name).takeIf { it.isNotBlank() }
-        ?: error("Auth response is missing $name")
+  private fun JSONObject.requireString(name: String): String =
+    optString(name).takeIf { it.isNotBlank() }
+      ?: error("Auth response is missing $name")
 
-    private class RefreshTokenRejectedException(message: String) : IllegalStateException(message)
+  private class RefreshTokenRejectedException(message: String) : IllegalStateException(message)
 
-    private companion object {
-        val JSON = "application/json; charset=utf-8".toMediaType()
-    }
+  private companion object {
+    const val OKHTTP_LOG_TAG = "OkHttp"
+    val JSON = "application/json; charset=utf-8".toMediaType()
+  }
 }

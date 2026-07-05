@@ -16,3 +16,6 @@ VECTOR_BACKEND_URL_PROD=https://app.projectvector.ai/api
 # OAuth 2.0 Web client IDs used by Android Credential Manager / Google ID token flow.
 GOOGLE_WEB_CLIENT_ID_DEV=your-dev-google-web-client-id.apps.googleusercontent.com
 GOOGLE_WEB_CLIENT_ID_PROD=your-prod-google-web-client-id.apps.googleusercontent.com
+
+APP_NAME_DEV="(D)Vector"
+APP_NAME_PROD="Vector"

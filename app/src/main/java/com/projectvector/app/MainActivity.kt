@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -79,6 +80,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -235,7 +237,22 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (BuildConfig.DEBUG) {
+                    Timber.tag(NETWORK_LOG_TAG).w(
+                        "WebView error %s %s: %s",
+                        request.method,
+                        request.url,
+                        error.description,
+                    )
+                }
                 if (request.isForMainFrame) onError(error.description?.toString() ?: "Unable to load Project Vector")
+            }
+
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                if (BuildConfig.DEBUG && webViewConfig.isTrusted(request.url.toString())) {
+                    Timber.tag(NETWORK_LOG_TAG).d("WebView %s %s", request.method, request.url)
+                }
+                return super.shouldInterceptRequest(view, request)
             }
         }
     }
@@ -252,6 +269,10 @@ class MainActivity : ComponentActivity() {
     private fun Bundle.toNotificationPayload(): NotificationRoutePayload? {
         val route = getString("route") ?: return null
         return NotificationRoutePayload(route = route, date = getString("date"), taskId = getString("taskId"), goalId = getString("goalId"))
+    }
+
+    private companion object {
+        const val NETWORK_LOG_TAG = "Network"
     }
 }
 

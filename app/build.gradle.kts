@@ -21,6 +21,9 @@ fun envLocalProperty(name: String, env: String, fallback: String = ""): String =
     localProperty("${name}_${env.uppercase()}", localProperty(name, fallback))
 
 fun quotedBuildConfig(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+fun unquotedLocalProperty(value: String): String = value
+    .removeSurrounding("\"")
+    .removeSurrounding("'")
 
 android {
     namespace = "com.projectvector.app"
@@ -48,6 +51,7 @@ android {
             buildConfigField("String", "VECTOR_TRUSTED_HOSTS", quotedBuildConfig(envLocalProperty("VECTOR_TRUSTED_HOSTS", "dev")))
             buildConfigField("String", "VECTOR_BACKEND_URL", quotedBuildConfig(envLocalProperty("VECTOR_BACKEND_URL", "dev")))
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", quotedBuildConfig(envLocalProperty("GOOGLE_WEB_CLIENT_ID", "dev")))
+            manifestPlaceholders["appName"] = unquotedLocalProperty(envLocalProperty("APP_NAME", "dev", "Vector Dev"))
         }
         create("prod") {
             dimension = "environment"
@@ -55,6 +59,7 @@ android {
             buildConfigField("String", "VECTOR_TRUSTED_HOSTS", quotedBuildConfig(envLocalProperty("VECTOR_TRUSTED_HOSTS", "prod")))
             buildConfigField("String", "VECTOR_BACKEND_URL", quotedBuildConfig(envLocalProperty("VECTOR_BACKEND_URL", "prod")))
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", quotedBuildConfig(envLocalProperty("GOOGLE_WEB_CLIENT_ID", "prod")))
+            manifestPlaceholders["appName"] = unquotedLocalProperty(envLocalProperty("APP_NAME", "prod", "Vector"))
         }
 
     }
@@ -66,6 +71,7 @@ android {
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
