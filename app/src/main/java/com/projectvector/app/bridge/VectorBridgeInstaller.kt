@@ -39,6 +39,7 @@ object VectorBridgeInstaller {
             secureStoreToken: function(token) { return invoke('secureStoreToken', { token: token }); },
             secureStoreSession: function(payload) { return invoke('secureStoreSession', payload); },
             getSecureSession: function() { return invoke('getSecureSession'); },
+            refreshAuthToken: function() { return invoke('refreshAuthToken'); },
             clearSecureToken: function() { return invoke('clearSecureToken'); },
             openPayment: function(payload) { return invoke('openPayment', payload); },
             share: function(payload) { return invoke('share', payload); },

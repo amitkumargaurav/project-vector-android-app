@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import com.projectvector.app.BuildConfig
+import com.projectvector.app.auth.AuthRepository
 import com.projectvector.app.auth.GoogleAuthManager
 import com.projectvector.app.core.security.TokenStore
 import com.projectvector.app.notifications.FcmTokenProvider
@@ -26,6 +27,7 @@ class BridgeDispatcher @Inject constructor(
     private val backPressController: BackPressController,
     private val callbackSender: ReactCallbackSender,
     private val googleAuthManager: GoogleAuthManager,
+    private val authRepository: AuthRepository,
 ) {
     suspend fun dispatch(activity: Activity, method: String, payload: JSONObject?): JSONObject = runCatching {
         when (method) {
@@ -67,6 +69,14 @@ class BridgeDispatcher @Inject constructor(
             "getSecureSession" -> JSONObject().result(JSONObject().apply {
                 tokenStore.getSession().forEach { (key, value) -> value?.let { put(key, it) } }
             })
+            "refreshAuthToken" -> authRepository.refreshAuthToken().fold(
+                onSuccess = { session ->
+                    JSONObject().result(JSONObject().put("accessToken", session.accessToken).apply {
+                        session.refreshToken?.let { put("refreshToken", it) }
+                    })
+                },
+                onFailure = { bridgeError(it.message ?: "Unable to refresh auth token") },
+            )
             "clearSecureToken" -> {
                 tokenStore.clear()
                 JSONObject().result(JSONObject().put("cleared", true))

@@ -266,6 +266,11 @@ class MainViewModel @Inject constructor(
 
     init {
         _uiState.value = if (tokenStore.hasSession()) MainUiState.Home else MainUiState.Login()
+        viewModelScope.launch {
+            authRepository.sessionInvalidated.collect {
+                _uiState.value = MainUiState.Login(error = "Session expired. Please sign in again.")
+            }
+        }
     }
 
     fun loginWithGoogle(activityContext: android.content.Context) {

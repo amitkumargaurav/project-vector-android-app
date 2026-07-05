@@ -37,14 +37,12 @@ android {
         buildConfigField("String", "VECTOR_WEB_URL", quotedBuildConfig(localProperty("VECTOR_WEB_URL")))
         buildConfigField("String", "VECTOR_TRUSTED_HOSTS", quotedBuildConfig(localProperty("VECTOR_TRUSTED_HOSTS")))
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", quotedBuildConfig(localProperty("GOOGLE_WEB_CLIENT_ID")))
-        buildConfigField("String", "VECTOR_AUTH_EXCHANGE_URL", quotedBuildConfig(localProperty("VECTOR_AUTH_EXCHANGE_URL")))
     }
 
     flavorDimensions += "environment"
     productFlavors {
         create("dev") {
             dimension = "environment"
-            applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
             buildConfigField("String", "VECTOR_WEB_URL", quotedBuildConfig(envLocalProperty("VECTOR_WEB_URL", "dev")))
             buildConfigField("String", "VECTOR_TRUSTED_HOSTS", quotedBuildConfig(envLocalProperty("VECTOR_TRUSTED_HOSTS", "dev")))
@@ -112,6 +110,8 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.jakewharton.timber:timber:5.0.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

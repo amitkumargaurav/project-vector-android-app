@@ -27,7 +27,7 @@ class TokenStore @Inject constructor(@ApplicationContext context: Context) {
     }
 
     fun storeAccessToken(token: String) {
-        storeSession(AuthSession(accessToken = token))
+        prefs.edit().putString(KEY_ACCESS_TOKEN, token).apply()
     }
 
     fun storeSession(accessToken: String, refreshToken: String?, expiresAt: String?, userId: String?) {
@@ -40,6 +40,8 @@ class TokenStore @Inject constructor(@ApplicationContext context: Context) {
     }
 
     fun getAccessToken(): String? = prefs.getString(KEY_ACCESS_TOKEN, null)
+
+    fun getRefreshToken(): String? = prefs.getString(KEY_REFRESH_TOKEN, null)
 
     fun getSession(): Map<String, String?> = mapOf(
         KEY_ACCESS_TOKEN to prefs.getString(KEY_ACCESS_TOKEN, null),
