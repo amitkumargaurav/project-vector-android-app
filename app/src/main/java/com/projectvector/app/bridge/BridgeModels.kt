@@ -12,6 +12,7 @@ data class ReminderPayload(
 )
 
 data class PaymentPayload(val plan: String, val userId: String)
+data class SessionPayload(val accessToken: String, val refreshToken: String?, val expiresAt: String?, val userId: String?)
 data class SharePayload(val title: String, val text: String)
 data class BackPressPayload(val mode: String)
 
@@ -42,7 +43,9 @@ fun JSONObject.toReminderPayload(): ReminderPayload = ReminderPayload(
     title = requireString("title"),
     hour = requireIntInRange("hour", 0, 23),
     minute = requireIntInRange("minute", 0, 59),
-    daysOfWeek = optJSONArray("daysOfWeek")?.toIntList(),
+    daysOfWeek = optJSONArray("daysOfWeek")?.toIntList()?.also { days ->
+        require(days.all { it in 1..7 }) { "daysOfWeek values must be between 1 and 7" }
+    },
 )
 
 fun JSONObject.toPaymentPayload(): PaymentPayload {
@@ -50,6 +53,13 @@ fun JSONObject.toPaymentPayload(): PaymentPayload {
     require(plan == "premium_monthly" || plan == "premium_yearly") { "Invalid payment plan" }
     return PaymentPayload(plan = plan, userId = requireString("userId"))
 }
+
+fun JSONObject.toSessionPayload(): SessionPayload = SessionPayload(
+    accessToken = requireString("accessToken"),
+    refreshToken = optString("refreshToken").takeIf { it.isNotBlank() },
+    expiresAt = optString("expiresAt").takeIf { it.isNotBlank() },
+    userId = optString("userId").takeIf { it.isNotBlank() },
+)
 
 fun JSONObject.toSharePayload(): SharePayload = SharePayload(title = requireString("title"), text = requireString("text"))
 fun JSONObject.toBackPressPayload(): BackPressPayload {

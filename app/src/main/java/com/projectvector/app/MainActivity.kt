@@ -64,7 +64,6 @@ import com.projectvector.app.webview.BackPressMode
 import com.projectvector.app.webview.WebViewConfig
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -124,8 +123,6 @@ class MainActivity : ComponentActivity() {
         var loading by remember { mutableStateOf(true) }
         var error by remember { mutableStateOf<String?>(null) }
 
-        // TODO: Add the architecture boot flow: splash -> native Google login -> backend auth exchange -> WebView.
-        // The shell currently loads the configured React URL directly.
         BackHandler(enabled = backMode != BackPressMode.DISABLED) {
             when {
                 backMode == BackPressMode.DISABLED -> Unit
@@ -175,7 +172,6 @@ class MainActivity : ComponentActivity() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
             cacheMode = WebSettings.LOAD_DEFAULT
             allowFileAccess = false
             allowContentAccess = false

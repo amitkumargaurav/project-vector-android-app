@@ -29,6 +29,7 @@ object VectorBridgeInstaller {
           window.VectorMobileCallbacks = window.VectorMobileCallbacks || {};
           window.VectorMobileBridge = {
             __native: true,
+            requestGoogleIdToken: function() { return invoke('requestGoogleIdToken'); },
             getFcmToken: function() { return invoke('getFcmToken'); },
             checkNotificationPermission: function() { return invoke('checkNotificationPermission'); },
             requestNotificationPermission: function() { return invoke('requestNotificationPermission'); },
@@ -36,6 +37,8 @@ object VectorBridgeInstaller {
             cancelLocalReminder: function(id) { return invoke('cancelLocalReminder', { id: id }); },
             getAppInfo: function() { return invoke('getAppInfo'); },
             secureStoreToken: function(token) { return invoke('secureStoreToken', { token: token }); },
+            secureStoreSession: function(payload) { return invoke('secureStoreSession', payload); },
+            getSecureSession: function() { return invoke('getSecureSession'); },
             clearSecureToken: function() { return invoke('clearSecureToken'); },
             openPayment: function(payload) { return invoke('openPayment', payload); },
             share: function(payload) { return invoke('share', payload); },

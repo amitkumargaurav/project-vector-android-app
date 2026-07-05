@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import com.projectvector.app.BuildConfig
+import com.projectvector.app.auth.GoogleAuthManager
 import com.projectvector.app.core.security.TokenStore
 import com.projectvector.app.notifications.FcmTokenProvider
 import com.projectvector.app.notifications.LocalReminderScheduler
@@ -24,15 +25,20 @@ class BridgeDispatcher @Inject constructor(
     private val tokenStore: TokenStore,
     private val backPressController: BackPressController,
     private val callbackSender: ReactCallbackSender,
+    private val googleAuthManager: GoogleAuthManager,
 ) {
     suspend fun dispatch(activity: Activity, method: String, payload: JSONObject?): JSONObject = runCatching {
         when (method) {
+            "requestGoogleIdToken" -> googleAuthManager.requestGoogleIdToken(activity).fold(
+                onSuccess = { JSONObject().result(JSONObject().put("idToken", it)) },
+                onFailure = { bridgeError(it.message ?: "Unable to request Google ID token") },
+            )
             "getFcmToken" -> fcmTokenProvider.getToken().fold(
                 onSuccess = { JSONObject().result(JSONObject().put("token", it)) },
                 onFailure = { bridgeError(it.message ?: "Unable to fetch FCM token") },
             )
             "checkNotificationPermission" -> JSONObject().result(JSONObject().put("granted", permissionManager.isGranted()))
-            "requestNotificationPermission" -> JSONObject().result(JSONObject().put("granted", permissionManager.request(activity)))
+            "requestNotificationPermission" -> JSONObject().result(JSONObject().put("granted", permissionManager.request()))
             "scheduleLocalReminder" -> {
                 val reminder = requirePayload(payload).toReminderPayload()
                 withContext(Dispatchers.Default) { reminderScheduler.schedule(reminder) }
@@ -47,23 +53,28 @@ class BridgeDispatcher @Inject constructor(
                 put("platform", "android")
                 put("appVersion", BuildConfig.VERSION_NAME)
                 put("osVersion", Build.VERSION.RELEASE)
+                put("backendUrl", BuildConfig.VECTOR_BACKEND_URL)
             })
             "secureStoreToken" -> {
-                // TODO: Replace single-token storage with the backend session model once auth exchange is defined
-                // (access token, refresh token, device id, user/session metadata).
                 tokenStore.storeAccessToken(requirePayload(payload).requireString("token"))
                 JSONObject().result(JSONObject().put("stored", true))
             }
+            "secureStoreSession" -> {
+                val session = requirePayload(payload).toSessionPayload()
+                tokenStore.storeSession(session.accessToken, session.refreshToken, session.expiresAt, session.userId)
+                JSONObject().result(JSONObject().put("stored", true))
+            }
+            "getSecureSession" -> JSONObject().result(JSONObject().apply {
+                tokenStore.getSession().forEach { (key, value) -> value?.let { put(key, it) } }
+            })
             "clearSecureToken" -> {
                 tokenStore.clear()
                 JSONObject().result(JSONObject().put("cleared", true))
             }
             "openPayment" -> {
                 val payment = requirePayload(payload).toPaymentPayload()
-                // TODO: Integrate the selected native payment SDK if Phase 0 moves away from React/web payments.
-                // Backend webhook/subscription status must remain final truth.
-                callbackSender.onPaymentFailed(reason = "Native payments are not configured", code = "not_configured")
-                JSONObject().result(JSONObject().put("status", "not_configured").put("plan", payment.plan))
+                callbackSender.onPaymentFailed(reason = "Payments are handled by the web checkout flow", code = "web_checkout_required")
+                JSONObject().result(JSONObject().put("status", "web_checkout_required").put("plan", payment.plan).put("userId", payment.userId))
             }
             "share" -> {
                 val share = requirePayload(payload).toSharePayload()

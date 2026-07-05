@@ -1,7 +1,6 @@
 package com.projectvector.app.notifications
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -32,7 +31,7 @@ class NotificationPermissionManager @Inject constructor(
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun request(activity: Activity): Boolean {
+    fun request(): Boolean {
         if (isGranted()) {
             callbackSender.onPermissionResult("notifications", true)
             return true
