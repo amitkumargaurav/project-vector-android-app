@@ -17,6 +17,9 @@ val localProperties = Properties().apply {
 fun localProperty(name: String, fallback: String = ""): String =
     localProperties.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() } ?: fallback
 
+fun envLocalProperty(name: String, env: String, fallback: String = ""): String =
+    localProperty("${name}_${env.uppercase()}", localProperty(name, fallback))
+
 fun quotedBuildConfig(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
 android {
@@ -35,6 +38,27 @@ android {
         buildConfigField("String", "VECTOR_TRUSTED_HOSTS", quotedBuildConfig(localProperty("VECTOR_TRUSTED_HOSTS")))
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", quotedBuildConfig(localProperty("GOOGLE_WEB_CLIENT_ID")))
         buildConfigField("String", "VECTOR_AUTH_EXCHANGE_URL", quotedBuildConfig(localProperty("VECTOR_AUTH_EXCHANGE_URL")))
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            buildConfigField("String", "VECTOR_WEB_URL", quotedBuildConfig(envLocalProperty("VECTOR_WEB_URL", "dev")))
+            buildConfigField("String", "VECTOR_TRUSTED_HOSTS", quotedBuildConfig(envLocalProperty("VECTOR_TRUSTED_HOSTS", "dev")))
+            buildConfigField("String", "VECTOR_BACKEND_URL", quotedBuildConfig(envLocalProperty("VECTOR_BACKEND_URL", "dev")))
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", quotedBuildConfig(envLocalProperty("GOOGLE_WEB_CLIENT_ID", "dev")))
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField("String", "VECTOR_WEB_URL", quotedBuildConfig(envLocalProperty("VECTOR_WEB_URL", "prod")))
+            buildConfigField("String", "VECTOR_TRUSTED_HOSTS", quotedBuildConfig(envLocalProperty("VECTOR_TRUSTED_HOSTS", "prod")))
+            buildConfigField("String", "VECTOR_BACKEND_URL", quotedBuildConfig(envLocalProperty("VECTOR_BACKEND_URL", "prod")))
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", quotedBuildConfig(envLocalProperty("GOOGLE_WEB_CLIENT_ID", "prod")))
+        }
+
     }
 
     buildTypes {

@@ -2,13 +2,20 @@
 sdk.dir=/absolute/path/to/Android/Sdk
 
 # React app loaded by the Android WebView shell.
-VECTOR_WEB_URL=https://app.projectvector.ai
+VECTOR_WEB_URL_DEV=http://192.168.1.10:5173/
+VECTOR_WEB_URL_PROD=https://app.projectvector.ai
 
-# Comma-separated HTTPS hosts allowed inside the WebView.
-VECTOR_TRUSTED_HOSTS=app.projectvector.ai,projectvector.ai
+# Comma-separated hosts allowed inside the WebView.
+VECTOR_TRUSTED_HOSTS_DEV=192.168.1.10
+VECTOR_TRUSTED_HOSTS_PROD=app.projectvector.ai,projectvector.ai
 
-# OAuth 2.0 Web client ID used by Android Credential Manager / Google ID token flow.
-GOOGLE_WEB_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+# Backend API base URL used by native integrations.
+VECTOR_BACKEND_URL_DEV=http://192.168.1.10:3000/api
+VECTOR_BACKEND_URL_PROD=https://app.projectvector.ai/api
+
+# OAuth 2.0 Web client IDs used by Android Credential Manager / Google ID token flow.
+GOOGLE_WEB_CLIENT_ID_DEV=your-dev-google-web-client-id.apps.googleusercontent.com
+GOOGLE_WEB_CLIENT_ID_PROD=your-prod-google-web-client-id.apps.googleusercontent.com
 
 # Backend endpoint that exchanges a Google ID token for app session tokens.
 VECTOR_AUTH_EXCHANGE_URL=https://api.projectvector.ai/auth/google

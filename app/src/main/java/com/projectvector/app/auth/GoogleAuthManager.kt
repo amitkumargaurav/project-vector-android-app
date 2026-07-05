@@ -16,8 +16,6 @@ import javax.inject.Singleton
 class GoogleAuthManager @Inject constructor(@ApplicationContext private val context: Context) {
     private val credentialManager = CredentialManager.create(context)
 
-    // TODO: Wire this into the boot/login UI and exchange the Google ID token with the backend.
-    // Phase 0 session truth must come from backend, not from the raw Google credential.
     suspend fun requestGoogleIdToken(activityContext: Context): Result<String> {
         if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) {
             return Result.failure(IllegalStateException("GOOGLE_WEB_CLIENT_ID is not configured"))
