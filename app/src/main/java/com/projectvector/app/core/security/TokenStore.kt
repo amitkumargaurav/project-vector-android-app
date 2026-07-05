@@ -17,11 +17,22 @@ class TokenStore @Inject constructor(@ApplicationContext context: Context) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
+    fun storeSession(session: AuthSession) {
+        prefs.edit()
+            .putString(KEY_ACCESS_TOKEN, session.accessToken)
+            .putString(KEY_REFRESH_TOKEN, session.refreshToken)
+            .putString(KEY_ID_TOKEN, session.idToken)
+            .putLong(KEY_EXPIRES_AT_EPOCH_SECONDS, session.expiresAtEpochSeconds ?: 0L)
+            .apply()
+    }
+
     fun storeAccessToken(token: String) {
-        prefs.edit().putString(KEY_ACCESS_TOKEN, token).apply()
+        storeSession(AuthSession(accessToken = token))
     }
 
     fun getAccessToken(): String? = prefs.getString(KEY_ACCESS_TOKEN, null)
+
+    fun hasSession(): Boolean = !getAccessToken().isNullOrBlank()
 
     fun clear() {
         prefs.edit().clear().apply()
@@ -29,5 +40,15 @@ class TokenStore @Inject constructor(@ApplicationContext context: Context) {
 
     private companion object {
         const val KEY_ACCESS_TOKEN = "access_token"
+        const val KEY_REFRESH_TOKEN = "refresh_token"
+        const val KEY_ID_TOKEN = "id_token"
+        const val KEY_EXPIRES_AT_EPOCH_SECONDS = "expires_at_epoch_seconds"
     }
 }
+
+data class AuthSession(
+    val accessToken: String,
+    val refreshToken: String? = null,
+    val idToken: String? = null,
+    val expiresAtEpochSeconds: Long? = null,
+)

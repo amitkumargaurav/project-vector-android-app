@@ -9,3 +9,6 @@ VECTOR_TRUSTED_HOSTS=app.projectvector.ai,projectvector.ai
 
 # OAuth 2.0 Web client ID used by Android Credential Manager / Google ID token flow.
 GOOGLE_WEB_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+
+# Backend endpoint that exchanges a Google ID token for app session tokens.
+VECTOR_AUTH_EXCHANGE_URL=https://api.projectvector.ai/auth/google

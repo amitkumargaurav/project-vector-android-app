@@ -18,16 +18,22 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,16 +44,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.projectvector.app.auth.AuthRepository
+import com.projectvector.app.auth.GoogleAuthManager
 import com.projectvector.app.bridge.AndroidBridge
 import com.projectvector.app.bridge.BridgeDispatcher
 import com.projectvector.app.bridge.NotificationRoutePayload
@@ -57,6 +67,7 @@ import com.projectvector.app.deeplink.DeepLinkParser
 import com.projectvector.app.lifecycle.AppLifecycleObserver
 import com.projectvector.app.lifecycle.ConnectivityObserver
 import com.projectvector.app.notifications.NotificationPermissionManager
+import com.projectvector.app.core.security.TokenStore
 import com.projectvector.app.ui.theme.VectorColors
 import com.projectvector.app.ui.theme.VectorTheme
 import com.projectvector.app.webview.BackPressController
@@ -64,7 +75,10 @@ import com.projectvector.app.webview.BackPressMode
 import com.projectvector.app.webview.WebViewConfig
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -82,6 +96,7 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
         connectivityObserver.start()
@@ -93,7 +108,7 @@ class MainActivity : ComponentActivity() {
                     permissionManager.onPermissionResult(granted)
                 }
                 LaunchedEffect(Unit) { permissionManager.bindLauncher(permissionLauncher) }
-                VectorWebShell()
+                VectorAppShell()
             }
         }
     }
@@ -118,14 +133,27 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    private fun VectorAppShell() {
+        val uiState by viewModel.uiState.collectAsState()
+
+        when (val state = uiState) {
+            MainUiState.Splash -> SplashScreenContent()
+            is MainUiState.Login -> LoginScreen(
+                loading = state.loading,
+                error = state.error,
+                onGoogleLogin = { viewModel.loginWithGoogle(this) },
+            )
+            MainUiState.Home -> VectorWebShell()
+        }
+    }
+
+    @Composable
     private fun VectorWebShell() {
         val backMode by backPressController.mode.collectAsState()
         var canGoBack by remember { mutableStateOf(false) }
         var loading by remember { mutableStateOf(true) }
         var error by remember { mutableStateOf<String?>(null) }
 
-        // TODO: Add the architecture boot flow: splash -> native Google login -> backend auth exchange -> WebView.
-        // The shell currently loads the configured React URL directly.
         BackHandler(enabled = backMode != BackPressMode.DISABLED) {
             when {
                 backMode == BackPressMode.DISABLED -> Unit
@@ -229,7 +257,97 @@ class MainActivity : ComponentActivity() {
 }
 
 @HiltViewModel
-class MainViewModel @Inject constructor() : ViewModel()
+class MainViewModel @Inject constructor(
+    private val tokenStore: TokenStore,
+    private val googleAuthManager: GoogleAuthManager,
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow<MainUiState>(MainUiState.Splash)
+    val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    init {
+        _uiState.value = if (tokenStore.hasSession()) MainUiState.Home else MainUiState.Login()
+    }
+
+    fun loginWithGoogle(activityContext: android.content.Context) {
+        if ((_uiState.value as? MainUiState.Login)?.loading == true) return
+        _uiState.value = MainUiState.Login(loading = true)
+        viewModelScope.launch {
+            googleAuthManager.requestGoogleIdToken(activityContext)
+                .fold(
+                    onSuccess = { idToken ->
+                        authRepository.exchangeGoogleIdToken(idToken).fold(
+                            onSuccess = { _uiState.value = MainUiState.Home },
+                            onFailure = { _uiState.value = MainUiState.Login(error = it.message ?: "Unable to sign in") },
+                        )
+                    },
+                    onFailure = { _uiState.value = MainUiState.Login(error = it.message ?: "Unable to sign in with Google") },
+                )
+        }
+    }
+}
+
+sealed interface MainUiState {
+    data object Splash : MainUiState
+    data class Login(val loading: Boolean = false, val error: String? = null) : MainUiState
+    data object Home : MainUiState
+}
+
+@Composable
+private fun SplashScreenContent() {
+    BrandedAuthSurface {
+        CircularProgressIndicator(color = VectorColors.Vector500)
+    }
+}
+
+@Composable
+private fun LoginScreen(loading: Boolean, error: String?, onGoogleLogin: () -> Unit) {
+    BrandedAuthSurface {
+        Text("Project Vector", fontWeight = FontWeight.Bold, fontSize = 30.sp, color = VectorColors.Vector800)
+        Spacer(Modifier.height(8.dp))
+        Text("Sign in to continue", color = VectorColors.Vector900, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(28.dp))
+        Button(
+            onClick = onGoogleLogin,
+            enabled = !loading,
+            colors = ButtonDefaults.buttonColors(containerColor = VectorColors.Vector500),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                if (loading) {
+                    CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(if (loading) "Signing in…" else "Continue with Google")
+            }
+        }
+        error?.let {
+            Spacer(Modifier.height(18.dp))
+            Text(it, color = VectorColors.Danger, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun BrandedAuthSurface(content: @Composable ColumnScope.() -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(VectorColors.Vector25, VectorColors.Vector100))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.padding(28.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(28.dp)),
+            color = androidx.compose.ui.graphics.Color.White,
+        ) {
+            Column(
+                modifier = Modifier.padding(28.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                content = content,
+            )
+        }
+    }
+}
 
 @Composable
 private fun LoadingOverlay() {
