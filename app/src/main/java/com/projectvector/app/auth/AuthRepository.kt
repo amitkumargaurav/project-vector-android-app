@@ -43,8 +43,8 @@ class AuthRepository @Inject constructor(
 
   private val refreshMutex = Mutex()
   private var refreshInFlight: CompletableDeferred<Result<AuthSession>>? = null
-  private val _sessionInvalidated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-  val sessionInvalidated: SharedFlow<Unit> = _sessionInvalidated.asSharedFlow()
+  private val _sessionInvalidated = MutableSharedFlow<SessionInvalidation>(extraBufferCapacity = 1)
+  val sessionInvalidated: SharedFlow<SessionInvalidation> = _sessionInvalidated.asSharedFlow()
 
   suspend fun exchangeGoogleIdToken(idToken: String): Result<AuthSession> =
     withContext(Dispatchers.IO) {
@@ -109,6 +109,10 @@ class AuthRepository @Inject constructor(
     }
   }
 
+  fun clearSecureToken() {
+    invalidateSession(message = null)
+  }
+
   private suspend fun refreshAuthTokenInternal(): Result<AuthSession> =
     withContext(Dispatchers.IO) {
       runCatching {
@@ -155,10 +159,14 @@ class AuthRepository @Inject constructor(
           tokenStore.storeSession(it)
         }
       }.onFailure {
-        tokenStore.clear()
-        _sessionInvalidated.tryEmit(Unit)
+        invalidateSession(message = "Session expired. Please sign in again.")
       }
     }
+
+  private fun invalidateSession(message: String?) {
+    tokenStore.clear()
+    _sessionInvalidated.tryEmit(SessionInvalidation(message))
+  }
 
   private fun JSONObject.requireString(name: String): String =
     optString(name).takeIf { it.isNotBlank() }
@@ -171,3 +179,5 @@ class AuthRepository @Inject constructor(
     val JSON = "application/json; charset=utf-8".toMediaType()
   }
 }
+
+data class SessionInvalidation(val message: String?)

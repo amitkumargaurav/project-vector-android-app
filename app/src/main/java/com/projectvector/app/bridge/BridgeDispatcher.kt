@@ -78,7 +78,7 @@ class BridgeDispatcher @Inject constructor(
                 onFailure = { bridgeError(it.message ?: "Unable to refresh auth token") },
             )
             "clearSecureToken" -> {
-                tokenStore.clear()
+                authRepository.clearSecureToken()
                 JSONObject().result(JSONObject().put("cleared", true))
             }
             "openPayment" -> {
