@@ -13,7 +13,6 @@ import com.projectvector.app.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.projectvector.app.bridge.NotificationRoutePayload
-import com.projectvector.app.bridge.ReactCallbackSender
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,8 +22,8 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class VectorFirebaseMessagingService : FirebaseMessagingService() {
-    @Inject lateinit var callbackSender: ReactCallbackSender
     @Inject lateinit var notificationOnboardingManager: NotificationOnboardingManager
+    @Inject lateinit var notificationChannels: NotificationChannels
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -33,19 +32,18 @@ class VectorFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val route = message.data["route"] ?: return
         val payload = NotificationRoutePayload(
-            route = route,
+            route = message.data["route"] ?: DEFAULT_ROUTE,
             date = message.data["date"],
             taskId = message.data["taskId"],
             goalId = message.data["goalId"],
         )
-        callbackSender.onNotificationClicked(payload)
         showNotification(message, payload)
     }
 
     private fun showNotification(message: RemoteMessage, payload: NotificationRoutePayload) {
         if (!canPostNotifications()) return
+        notificationChannels.create()
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("route", payload.route)
@@ -60,12 +58,13 @@ class VectorFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(this, NotificationChannels.REMINDERS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle(message.notification?.title ?: message.data["title"] ?: "Project Vector")
             .setContentText(message.notification?.body ?: message.data["body"] ?: "Open Project Vector")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .build()
         getSystemService(NotificationManager::class.java).notify(message.messageId?.hashCode() ?: payload.route.hashCode(), notification)
     }
@@ -73,5 +72,9 @@ class VectorFirebaseMessagingService : FirebaseMessagingService() {
     private fun canPostNotifications(): Boolean {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    }
+
+    companion object {
+        private const val DEFAULT_ROUTE = "/"
     }
 }

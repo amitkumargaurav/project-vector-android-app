@@ -76,7 +76,7 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(applicationContext, NotificationChannels.REMINDERS)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle(title)
             .setContentText("Open Project Vector to keep your plan moving.")
             .setContentIntent(pendingIntent)

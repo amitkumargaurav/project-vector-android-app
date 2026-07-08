@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Vector</string>
+    <string name="notification_channel_reminders_name">Vector reminders</string>
+    <string name="notification_channel_reminders_description">Project Vector reminders and notification routing</string>
 </resources>
