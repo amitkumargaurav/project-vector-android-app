@@ -1,9 +1,13 @@
 package com.projectvector.app.notifications
 
+import android.Manifest
 import android.app.NotificationManager
+import android.content.pm.PackageManager
+import android.os.Build
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.projectvector.app.MainActivity
 import com.projectvector.app.R
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -30,6 +34,7 @@ class VectorFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun showNotification(message: RemoteMessage, payload: NotificationRoutePayload) {
+        if (!canPostNotifications()) return
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra("route", payload.route)
@@ -52,5 +57,10 @@ class VectorFirebaseMessagingService : FirebaseMessagingService() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
         getSystemService(NotificationManager::class.java).notify(message.messageId?.hashCode() ?: payload.route.hashCode(), notification)
+    }
+
+    private fun canPostNotifications(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     }
 }

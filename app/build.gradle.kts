@@ -7,6 +7,19 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
+val hasGoogleServicesConfig = sequenceOf(
+    file("google-services.json"),
+    file("src/dev/google-services.json"),
+    file("src/prod/google-services.json"),
+    file("src/debug/google-services.json"),
+    file("src/release/google-services.json"),
+    file("src/main/google-services.json"),
+).any { it.exists() }
+
+if (hasGoogleServicesConfig) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val localProperties = Properties().apply {
     val localFile = rootProject.file("local.properties")
     if (localFile.exists()) {

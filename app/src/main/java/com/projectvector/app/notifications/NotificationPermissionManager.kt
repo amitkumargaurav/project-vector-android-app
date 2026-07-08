@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CompletableDeferred
 import com.projectvector.app.bridge.ReactCallbackSender
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -17,12 +18,17 @@ class NotificationPermissionManager @Inject constructor(
     private val callbackSender: ReactCallbackSender,
 ) {
     private var launcher: ActivityResultLauncher<String>? = null
+    private val pendingRequests = mutableListOf<CompletableDeferred<Boolean>>()
 
     fun bindLauncher(launcher: ActivityResultLauncher<String>) {
         this.launcher = launcher
     }
 
     fun onPermissionResult(granted: Boolean) {
+        val requests = synchronized(pendingRequests) {
+            pendingRequests.toList().also { pendingRequests.clear() }
+        }
+        requests.forEach { it.complete(granted) }
         callbackSender.onPermissionResult("notifications", granted)
     }
 
@@ -31,14 +37,17 @@ class NotificationPermissionManager @Inject constructor(
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun request(): Boolean {
+    suspend fun request(): Boolean {
         if (isGranted()) {
             callbackSender.onPermissionResult("notifications", true)
             return true
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            launcher?.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+
+        val permissionLauncher = launcher ?: return false
+        val result = CompletableDeferred<Boolean>()
+        synchronized(pendingRequests) { pendingRequests.add(result) }
+        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        return result.await()
     }
 }
