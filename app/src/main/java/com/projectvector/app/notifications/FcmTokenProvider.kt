@@ -6,21 +6,22 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @Singleton
 class FcmTokenProvider @Inject constructor() {
     suspend fun getToken(): Result<String> = runCatching {
-        suspendCancellableCoroutine { continuation ->
+        suspendCancellableCoroutine<String> { continuation ->
             val task = FirebaseMessaging.getInstance().token
             task.addOnSuccessListener { token ->
-                if (continuation.isActive) continuation.resume(Result.success(token))
+                if (continuation.isActive) continuation.resume(token)
             }
             task.addOnFailureListener { error ->
-                if (continuation.isActive) continuation.resume(Result.failure(error))
+                if (continuation.isActive) continuation.resumeWithException(error)
             }
             task.addOnCanceledListener {
-                if (continuation.isActive) continuation.resume(Result.failure(CancellationException("FCM token request was cancelled")))
+                if (continuation.isActive) continuation.resumeWithException(CancellationException("FCM token request was cancelled"))
             }
-        }.getOrThrow()
+        }
     }
 }
