@@ -65,6 +65,7 @@ class VectorFirebaseMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setSound(NotificationSound.uri(this))
             .build()
         getSystemService(NotificationManager::class.java).notify(message.messageId?.hashCode() ?: payload.route.hashCode(), notification)
     }

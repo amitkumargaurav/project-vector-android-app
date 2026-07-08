@@ -17,11 +17,12 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
         manager.createNotificationChannel(
             NotificationChannel(REMINDERS, context.getString(R.string.notification_channel_reminders_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = context.getString(R.string.notification_channel_reminders_description)
+                setSound(NotificationSound.uri(context), NotificationSound.audioAttributes())
             }
         )
     }
 
     companion object {
-        const val REMINDERS = "vector_reminders"
+        const val REMINDERS = "vector_reminders_ping"
     }
 }

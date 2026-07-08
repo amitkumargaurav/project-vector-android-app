@@ -17,7 +17,7 @@
         android:theme="@style/Theme.ProjectVector">
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="vector_reminders" />
+            android:value="vector_reminders_ping" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_notification" />

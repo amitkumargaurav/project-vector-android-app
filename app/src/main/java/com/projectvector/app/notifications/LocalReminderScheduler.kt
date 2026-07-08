@@ -82,6 +82,7 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setSound(NotificationSound.uri(applicationContext))
             .build()
         applicationContext.getSystemService(NotificationManager::class.java).notify(id.hashCode(), notification)
         return Result.success()
