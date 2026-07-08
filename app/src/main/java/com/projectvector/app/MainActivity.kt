@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -35,8 +36,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +70,8 @@ import com.projectvector.app.bridge.VectorBridgeInstaller
 import com.projectvector.app.deeplink.DeepLinkParser
 import com.projectvector.app.lifecycle.AppLifecycleObserver
 import com.projectvector.app.lifecycle.ConnectivityObserver
+import com.projectvector.app.notifications.NotificationOnboardingManager
+import com.projectvector.app.notifications.NotificationOnboardingUiState
 import com.projectvector.app.notifications.NotificationPermissionManager
 import com.projectvector.app.core.security.TokenStore
 import com.projectvector.app.ui.theme.VectorColors
@@ -91,6 +96,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var lifecycleObserver: AppLifecycleObserver
     @Inject lateinit var deepLinkParser: DeepLinkParser
     @Inject lateinit var permissionManager: NotificationPermissionManager
+    @Inject lateinit var notificationOnboardingManager: NotificationOnboardingManager
     @Inject lateinit var webViewConfig: WebViewConfig
     @Inject lateinit var backPressController: BackPressController
 
@@ -111,6 +117,7 @@ class MainActivity : ComponentActivity() {
                 }
                 LaunchedEffect(Unit) { permissionManager.bindLauncher(permissionLauncher) }
                 VectorAppShell()
+                NotificationOnboardingDialogs()
             }
         }
     }
@@ -119,6 +126,11 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIntent(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        notificationOnboardingManager.onAppForegrounded(viewModel.viewModelScope)
     }
 
     override fun onDestroy() {
@@ -145,7 +157,10 @@ class MainActivity : ComponentActivity() {
                 error = state.error,
                 onGoogleLogin = { viewModel.loginWithGoogle(this) },
             )
-            MainUiState.Home -> VectorWebShell()
+            MainUiState.Home -> {
+                LaunchedEffect(Unit) { notificationOnboardingManager.onLoggedInAppOpened(viewModel.viewModelScope) }
+                VectorWebShell()
+            }
         }
     }
 
@@ -191,6 +206,48 @@ class MainActivity : ComponentActivity() {
             onDispose {
                 webView?.let(callbackSender::detach)
             }
+        }
+    }
+
+
+    @Composable
+    private fun NotificationOnboardingDialogs() {
+        val state by notificationOnboardingManager.uiState.collectAsState()
+        when (state) {
+            NotificationOnboardingUiState.Idle -> Unit
+            NotificationOnboardingUiState.PrePermission -> AlertDialog(
+                onDismissRequest = notificationOnboardingManager::onPrePermissionDismissed,
+                title = { Text("Turn on Vector reminders") },
+                text = { Text("Notifications help Vector send reminders, plan reviews, and goal nudges at the right time.") },
+                confirmButton = {
+                    TextButton(onClick = { notificationOnboardingManager.onPrePermissionAccepted(viewModel.viewModelScope) }) {
+                        Text("Continue")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = notificationOnboardingManager::onPrePermissionDismissed) {
+                        Text("Not now")
+                    }
+                },
+            )
+            NotificationOnboardingUiState.PermissionDenied -> AlertDialog(
+                onDismissRequest = notificationOnboardingManager::dismissSettingsExplanation,
+                title = { Text("Notifications are off") },
+                text = { Text("Vector works best with notifications for reminders, reviews, and goal nudges. You can turn them on in system settings.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        notificationOnboardingManager.dismissSettingsExplanation()
+                        openNotificationSettings()
+                    }) {
+                        Text("Open settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = notificationOnboardingManager::dismissSettingsExplanation) {
+                        Text("Later")
+                    }
+                },
+            )
         }
     }
 
@@ -264,6 +321,13 @@ class MainActivity : ComponentActivity() {
         } catch (_: ActivityNotFoundException) {
             true
         }
+    }
+
+    private fun openNotificationSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+        }
+        startActivity(intent)
     }
 
     private fun Bundle.toNotificationPayload(): NotificationRoutePayload? {

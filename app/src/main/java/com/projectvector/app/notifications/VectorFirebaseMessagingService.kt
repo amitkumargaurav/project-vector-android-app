@@ -15,11 +15,22 @@ import com.google.firebase.messaging.RemoteMessage
 import com.projectvector.app.bridge.NotificationRoutePayload
 import com.projectvector.app.bridge.ReactCallbackSender
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class VectorFirebaseMessagingService : FirebaseMessagingService() {
     @Inject lateinit var callbackSender: ReactCallbackSender
+    @Inject lateinit var notificationOnboardingManager: NotificationOnboardingManager
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onNewToken(token: String) {
+        serviceScope.launch { notificationOnboardingManager.onFcmTokenRefreshed(token) }
+    }
 
     override fun onMessageReceived(message: RemoteMessage) {
         val route = message.data["route"] ?: return
