@@ -35,7 +35,7 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
         previousGoalIds.minus(desiredGoalIds).forEach(::cancelAllForGoal)
 
         persist(payload)
-        return payload.goals.sumOf { goal -> if (scheduleDaily(goal, payload.timezone)) 1 else 0 }
+        return payload.goals.count { goal -> scheduleDaily(goal, payload.timezone) }
     }
 
     fun markGoalProgressAddressed(payload: MarkGoalProgressAddressedPayload): Boolean {
@@ -68,7 +68,7 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
             scheduleDaily(goal, timezone)
         }
         if (goal.shouldScheduleAggressiveRepeat(today)) {
-            scheduleAggressiveRepeat(goal, timezone)
+            scheduleAggressiveRepeat(goal)
         } else {
             cancelAggressiveRepeat(goal.id)
         }
@@ -98,7 +98,7 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
         return true
     }
 
-    private fun scheduleAggressiveRepeat(goal: GoalNotificationState, timezone: String) {
+    private fun scheduleAggressiveRepeat(goal: GoalNotificationState) {
         val delayMinutes = goal.repeatEveryMinutes ?: DEFAULT_REPEAT_EVERY_MINUTES
         setAlarm(
             goalId = goal.id,
