@@ -58,6 +58,11 @@ class BridgeDispatcher @Inject constructor(
                 val scheduled = goalNotificationScheduler.setGoalNotifications(goalNotifications)
                 JSONObject().result(JSONObject().put("scheduled", scheduled))
             }
+            "markGoalProgressAddressed" -> {
+                val addressed = requirePayload(payload).toMarkGoalProgressAddressedPayload()
+                val applied = goalNotificationScheduler.markGoalProgressAddressed(addressed)
+                JSONObject().result(JSONObject().put("applied", applied))
+            }
             "getAppInfo" -> JSONObject().result(JSONObject().apply {
                 put("platform", "android")
                 put("appVersion", BuildConfig.VERSION_NAME)

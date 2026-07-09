@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 
 data class ReminderPayload(
     val id: String,
@@ -22,10 +23,14 @@ data class GoalNotificationState(
     val id: String,
     val title: String,
     val deadline: LocalDate,
+    val notificationTime: LocalTime,
     val weeklyAvailableMinutes: Int,
     val progressPercentage: Int,
     val probabilityPercentage: Int,
     val privacyMode: String,
+    val aggressive: Boolean,
+    val repeatEveryMinutes: Int?,
+    val requiresTodayProgressAddress: Boolean,
 ) {
     companion object {
         fun fromJson(json: JSONObject): GoalNotificationState = json.toGoalNotificationState()
@@ -36,6 +41,11 @@ data class GoalNotificationPayload(
     val goals: List<GoalNotificationState>,
     val timezone: String,
     val syncedAt: String,
+)
+
+data class MarkGoalProgressAddressedPayload(
+    val goalId: String,
+    val addressedAt: String,
 )
 
 data class NotificationRoutePayload(
@@ -106,16 +116,27 @@ fun JSONObject.toGoalNotificationPayload(): GoalNotificationPayload {
 fun JSONObject.toGoalNotificationState(): GoalNotificationState {
     val privacyMode = requireString("privacyMode")
     require(privacyMode == "standard" || privacyMode == "sensitive") { "Invalid privacyMode" }
+    val repeatEveryMinutes = optNullablePositiveInt("repeatEveryMinutes")
     return GoalNotificationState(
         id = requireString("id"),
         title = requireString("title"),
         deadline = runCatching { LocalDate.parse(requireString("deadline")) }
             .getOrElse { throw IllegalArgumentException("Invalid deadline") },
+        notificationTime = optLocalTime("notificationTime") ?: DEFAULT_GOAL_NOTIFICATION_TIME,
         weeklyAvailableMinutes = getRequiredNonNegativeInt("weeklyAvailableMinutes"),
         progressPercentage = requireIntInRange("progressPercentage", 0, 100),
         probabilityPercentage = requireIntInRange("probabilityPercentage", 0, 100),
         privacyMode = privacyMode,
+        aggressive = optBoolean("aggressive", false),
+        repeatEveryMinutes = repeatEveryMinutes,
+        requiresTodayProgressAddress = optBoolean("requiresTodayProgressAddress", false),
     )
+}
+
+fun JSONObject.toMarkGoalProgressAddressedPayload(): MarkGoalProgressAddressedPayload {
+    val addressedAt = requireString("addressedAt")
+    runCatching { Instant.parse(addressedAt) }.getOrElse { throw IllegalArgumentException("Invalid addressedAt") }
+    return MarkGoalProgressAddressedPayload(goalId = requireString("goalId"), addressedAt = addressedAt)
 }
 
 private fun JSONObject.getRequiredNonNegativeInt(name: String): Int {
@@ -123,5 +144,19 @@ private fun JSONObject.getRequiredNonNegativeInt(name: String): Int {
     require(value >= 0) { "$name must be non-negative" }
     return value
 }
+
+private fun JSONObject.optNullablePositiveInt(name: String): Int? {
+    if (!has(name) || isNull(name)) return null
+    val value = getInt(name)
+    require(value > 0) { "$name must be positive" }
+    return value
+}
+
+private fun JSONObject.optLocalTime(name: String): LocalTime? {
+    val value = optString(name).takeIf { it.isNotBlank() } ?: return null
+    return runCatching { LocalTime.parse(value) }.getOrNull()
+}
+
+private val DEFAULT_GOAL_NOTIFICATION_TIME: LocalTime = LocalTime.of(20, 0)
 
 private fun JSONArray.toIntList(): List<Int> = List(length()) { index -> getInt(index) }

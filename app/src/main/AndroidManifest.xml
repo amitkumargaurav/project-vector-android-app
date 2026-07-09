@@ -52,6 +52,9 @@
             android:name=".notifications.GoalNotificationReceiver"
             android:exported="false" />
         <receiver
+            android:name=".notifications.GoalNotificationTapReceiver"
+            android:exported="false" />
+        <receiver
             android:name=".notifications.GoalNotificationBootReceiver"
             android:exported="false">
             <intent-filter>

@@ -36,6 +36,7 @@ object VectorBridgeInstaller {
             scheduleLocalReminder: function(payload) { return invoke('scheduleLocalReminder', payload); },
             cancelLocalReminder: function(id) { return invoke('cancelLocalReminder', { id: id }); },
             setGoalNotifications: function(payload) { return invoke('setGoalNotifications', payload); },
+            markGoalProgressAddressed: function(payload) { return invoke('markGoalProgressAddressed', payload); },
             getAppInfo: function() { return invoke('getAppInfo'); },
             secureStoreToken: function(token) { return invoke('secureStoreToken', { token: token }); },
             secureStoreSession: function(payload) { return invoke('secureStoreSession', payload); },
