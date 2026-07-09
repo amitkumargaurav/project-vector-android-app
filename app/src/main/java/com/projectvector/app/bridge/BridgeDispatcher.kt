@@ -8,6 +8,7 @@ import com.projectvector.app.auth.AuthRepository
 import com.projectvector.app.auth.GoogleAuthManager
 import com.projectvector.app.core.security.TokenStore
 import com.projectvector.app.notifications.FcmTokenProvider
+import com.projectvector.app.notifications.GoalNotificationScheduler
 import com.projectvector.app.notifications.LocalReminderScheduler
 import com.projectvector.app.notifications.NotificationPermissionManager
 import com.projectvector.app.webview.BackPressController
@@ -23,6 +24,7 @@ class BridgeDispatcher @Inject constructor(
     private val fcmTokenProvider: FcmTokenProvider,
     private val permissionManager: NotificationPermissionManager,
     private val reminderScheduler: LocalReminderScheduler,
+    private val goalNotificationScheduler: GoalNotificationScheduler,
     private val tokenStore: TokenStore,
     private val backPressController: BackPressController,
     private val callbackSender: ReactCallbackSender,
@@ -50,6 +52,16 @@ class BridgeDispatcher @Inject constructor(
                 val id = requirePayload(payload).requireString("id")
                 reminderScheduler.cancel(id)
                 JSONObject().result(JSONObject().put("cancelled", true))
+            }
+            "setGoalNotifications" -> {
+                val goalNotifications = requirePayload(payload).toGoalNotificationPayload()
+                val scheduled = goalNotificationScheduler.setGoalNotifications(goalNotifications)
+                JSONObject().result(JSONObject().put("scheduled", scheduled))
+            }
+            "markGoalProgressAddressed" -> {
+                val addressed = requirePayload(payload).toMarkGoalProgressAddressedPayload()
+                val applied = goalNotificationScheduler.markGoalProgressAddressed(addressed)
+                JSONObject().result(JSONObject().put("applied", applied))
             }
             "getAppInfo" -> JSONObject().result(JSONObject().apply {
                 put("platform", "android")
