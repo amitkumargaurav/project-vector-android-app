@@ -15,10 +15,7 @@ import com.projectvector.app.MainActivity
 import com.projectvector.app.R
 import com.projectvector.app.bridge.ReminderPayload
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.time.Duration
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,7 +25,7 @@ class LocalReminderScheduler @Inject constructor(@ApplicationContext private val
     private val workManager = WorkManager.getInstance(context)
 
     fun schedule(payload: ReminderPayload): String {
-        val delay = Duration.between(LocalDateTime.now(), nextOccurrence(payload.hour, payload.minute)).toMillis().coerceAtLeast(0)
+        val delay = nextOccurrenceDelayMillis(payload.hour, payload.minute)
         val request = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS)
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
             .setInputData(payload.toWorkData())
@@ -42,10 +39,20 @@ class LocalReminderScheduler @Inject constructor(@ApplicationContext private val
         workManager.cancelUniqueWork(uniqueName(id))
     }
 
-    private fun nextOccurrence(hour: Int, minute: Int): LocalDateTime {
-        val now = LocalDateTime.now()
-        val target = now.with(LocalTime.of(hour, minute))
-        return if (target.isAfter(now)) target else target.plusDays(1)
+    fun cancelAll() {
+        workManager.cancelAllWork()
+    }
+
+    private fun nextOccurrenceDelayMillis(hour: Int, minute: Int): Long {
+        val now = Calendar.getInstance()
+        val target = (now.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            if (!after(now)) add(Calendar.DATE, 1)
+        }
+        return (target.timeInMillis - now.timeInMillis).coerceAtLeast(0L)
     }
 
     private fun uniqueName(id: String) = "vector_reminder_$id"
@@ -63,7 +70,7 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
         val title = inputData.getString(KEY_TITLE) ?: "Project Vector reminder"
         val daysOfWeek = inputData.getIntArray(KEY_DAYS_OF_WEEK)?.toSet().orEmpty()
-        if (daysOfWeek.isNotEmpty() && LocalDate.now().dayOfWeek.value !in daysOfWeek) {
+        if (daysOfWeek.isNotEmpty() && currentIsoWeekday() !in daysOfWeek) {
             return Result.success()
         }
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
@@ -81,11 +88,17 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             .setContentText("Open Project Vector to keep your plan moving.")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setSound(NotificationSound.uri(applicationContext))
             .build()
         applicationContext.getSystemService(NotificationManager::class.java).notify(id.hashCode(), notification)
         return Result.success()
+    }
+
+    private fun currentIsoWeekday(): Int {
+        val calendarDay = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+        return if (calendarDay == Calendar.SUNDAY) 7 else calendarDay - 1
     }
 
     companion object {

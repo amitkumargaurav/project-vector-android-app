@@ -15,7 +15,7 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(REMINDERS, context.getString(R.string.notification_channel_reminders_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
+            NotificationChannel(REMINDERS, context.getString(R.string.notification_channel_reminders_name), NotificationManager.IMPORTANCE_HIGH).apply {
                 description = context.getString(R.string.notification_channel_reminders_description)
                 setSound(NotificationSound.uri(context), NotificationSound.audioAttributes())
             }
@@ -23,6 +23,6 @@ class NotificationChannels @Inject constructor(@ApplicationContext private val c
     }
 
     companion object {
-        const val REMINDERS = "vector_reminders_ping"
+        const val REMINDERS = "vector_reminders_high"
     }
 }

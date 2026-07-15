@@ -3,6 +3,10 @@ package com.projectvector.app.auth
 import com.projectvector.app.BuildConfig
 import com.projectvector.app.core.security.AuthSession
 import com.projectvector.app.core.security.TokenStore
+import com.projectvector.app.notifications.DeviceRegistrationStore
+import com.projectvector.app.notifications.GoalNotificationScheduler
+import com.projectvector.app.notifications.LocalReminderScheduler
+import com.projectvector.app.webview.WebSessionCleaner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +31,10 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
   private val tokenStore: TokenStore,
+  private val webSessionCleaner: WebSessionCleaner,
+  private val goalNotificationScheduler: GoalNotificationScheduler,
+  private val localReminderScheduler: LocalReminderScheduler,
+  private val deviceRegistrationStore: DeviceRegistrationStore,
 ) {
   private val authHttpClient = OkHttpClient.Builder()
     .connectTimeout(15, TimeUnit.SECONDS)
@@ -165,6 +173,10 @@ class AuthRepository @Inject constructor(
 
   private fun invalidateSession(message: String?) {
     tokenStore.clear()
+    webSessionCleaner.clearPersistentData()
+    goalNotificationScheduler.clearAll()
+    localReminderScheduler.cancelAll()
+    deviceRegistrationStore.clearBackendDeviceId()
     _sessionInvalidated.tryEmit(SessionInvalidation(message))
   }
 

@@ -2,9 +2,12 @@ package com.projectvector.app.bridge
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalTime
+import timber.log.Timber
+import java.text.ParsePosition
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 data class ReminderPayload(
     val id: String,
@@ -22,8 +25,9 @@ data class BackPressPayload(val mode: String)
 data class GoalNotificationState(
     val id: String,
     val title: String,
-    val deadline: LocalDate,
-    val notificationTime: LocalTime,
+    val deadline: String,
+    val notificationHour: Int,
+    val notificationMinute: Int,
     val weeklyAvailableMinutes: Int,
     val progressPercentage: Int,
     val probabilityPercentage: Int,
@@ -40,6 +44,7 @@ data class GoalNotificationState(
 data class GoalNotificationPayload(
     val goals: List<GoalNotificationState>,
     val timezone: String,
+    val timezoneOffsetMinutes: Int?,
     val syncedAt: String,
 )
 
@@ -102,13 +107,18 @@ fun JSONObject.toBackPressPayload(): BackPressPayload {
 
 fun JSONObject.toGoalNotificationPayload(): GoalNotificationPayload {
     val goalsArray = optJSONArray("goals") ?: throw IllegalArgumentException("Missing required array: goals")
-    val timezone = requireString("timezone")
-    runCatching { java.time.ZoneId.of(timezone) }.getOrElse { throw IllegalArgumentException("Invalid timezone") }
-    val syncedAt = requireString("syncedAt")
-    runCatching { Instant.parse(syncedAt) }.getOrElse { throw IllegalArgumentException("Invalid syncedAt") }
+    val emptyPayload = goalsArray.length() == 0
+    val timezone = optString("timezone").takeIf { it.isNotBlank() }
+        ?: if (emptyPayload) TimeZone.getDefault().id else throw IllegalArgumentException("Missing required string: timezone")
+    requireValidTimeZone(timezone)
+    val timezoneOffsetMinutes = optNullableInt("timezoneOffsetMinutes")
+    val syncedAt = optString("syncedAt").takeIf { it.isNotBlank() }
+        ?: if (emptyPayload) utcTimestampNow() else throw IllegalArgumentException("Missing required string: syncedAt")
+    parseUtcTimestampMillis(syncedAt) ?: throw IllegalArgumentException("Invalid syncedAt")
     return GoalNotificationPayload(
-        goals = List(goalsArray.length()) { index -> goalsArray.getJSONObject(index).toGoalNotificationState() },
+        goals = goalsArray.toGoalNotificationStateList(),
         timezone = timezone,
+        timezoneOffsetMinutes = timezoneOffsetMinutes,
         syncedAt = syncedAt,
     )
 }
@@ -117,12 +127,13 @@ fun JSONObject.toGoalNotificationState(): GoalNotificationState {
     val privacyMode = requireString("privacyMode")
     require(privacyMode == "standard" || privacyMode == "sensitive") { "Invalid privacyMode" }
     val repeatEveryMinutes = optNullablePositiveInt("repeatEveryMinutes")
+    val notificationTime = requireNotificationTime()
     return GoalNotificationState(
         id = requireString("id"),
         title = requireString("title"),
-        deadline = runCatching { LocalDate.parse(requireString("deadline")) }
-            .getOrElse { throw IllegalArgumentException("Invalid deadline") },
-        notificationTime = optLocalTime("notificationTime") ?: DEFAULT_GOAL_NOTIFICATION_TIME,
+        deadline = requireIsoDate("deadline"),
+        notificationHour = notificationTime.hour,
+        notificationMinute = notificationTime.minute,
         weeklyAvailableMinutes = getRequiredNonNegativeInt("weeklyAvailableMinutes"),
         progressPercentage = requireIntInRange("progressPercentage", 0, 100),
         probabilityPercentage = requireIntInRange("probabilityPercentage", 0, 100),
@@ -135,8 +146,12 @@ fun JSONObject.toGoalNotificationState(): GoalNotificationState {
 
 fun JSONObject.toMarkGoalProgressAddressedPayload(): MarkGoalProgressAddressedPayload {
     val addressedAt = requireString("addressedAt")
-    runCatching { Instant.parse(addressedAt) }.getOrElse { throw IllegalArgumentException("Invalid addressedAt") }
+    parseUtcTimestampMillis(addressedAt) ?: throw IllegalArgumentException("Invalid addressedAt")
     return MarkGoalProgressAddressedPayload(goalId = requireString("goalId"), addressedAt = addressedAt)
+}
+
+private data class NotificationTime(val hour: Int, val minute: Int) {
+    override fun toString(): String = "%02d:%02d".format(Locale.US, hour, minute)
 }
 
 private fun JSONObject.getRequiredNonNegativeInt(name: String): Int {
@@ -152,11 +167,82 @@ private fun JSONObject.optNullablePositiveInt(name: String): Int? {
     return value
 }
 
-private fun JSONObject.optLocalTime(name: String): LocalTime? {
-    val value = optString(name).takeIf { it.isNotBlank() } ?: return null
-    return runCatching { LocalTime.parse(value) }.getOrNull()
+private fun JSONObject.optNullableInt(name: String): Int? {
+    if (!has(name) || isNull(name)) return null
+    return getInt(name)
 }
 
-private val DEFAULT_GOAL_NOTIFICATION_TIME: LocalTime = LocalTime.of(20, 0)
+private fun JSONObject.requireNotificationTime(): NotificationTime {
+    val hasHour = has("notificationHour") && !isNull("notificationHour")
+    val hasMinute = has("notificationMinute") && !isNull("notificationMinute")
+    if (hasHour || hasMinute) {
+        return NotificationTime(
+            hour = requireIntInRange("notificationHour", 0, 23),
+            minute = requireIntInRange("notificationMinute", 0, 59),
+        )
+    }
+
+    val value = optString("notificationTime").takeIf { it.isNotBlank() }
+        ?: throw IllegalArgumentException("Missing notificationHour/notificationMinute or notificationTime")
+    val match = Regex("""^(\d{2}):(\d{2})(?::\d{2})?$""").matchEntire(value)
+        ?: throw IllegalArgumentException("Invalid notificationTime")
+    return NotificationTime(
+        hour = match.groupValues[1].toInt().also { require(it in 0..23) { "Invalid notificationTime" } },
+        minute = match.groupValues[2].toInt().also { require(it in 0..59) { "Invalid notificationTime" } },
+    )
+}
+
+private fun JSONArray.toGoalNotificationStateList(): List<GoalNotificationState> {
+    val goals = mutableListOf<GoalNotificationState>()
+    for (index in 0 until length()) {
+        runCatching {
+            getJSONObject(index).toGoalNotificationState()
+        }.onSuccess { goal ->
+            goals += goal
+        }.onFailure { error ->
+            Timber.w(error, "Ignoring invalid goal notification payload at index %d", index)
+        }
+    }
+    return goals
+}
 
 private fun JSONArray.toIntList(): List<Int> = List(length()) { index -> getInt(index) }
+
+private fun JSONObject.requireIsoDate(name: String): String {
+    val value = requireString(name)
+    parseIsoDate(value) ?: throw IllegalArgumentException("Invalid $name")
+    return value
+}
+
+private fun parseIsoDate(value: String): Date? =
+    parseStrict(value, "yyyy-MM-dd", TimeZone.getTimeZone("UTC"))
+
+private fun parseUtcTimestampMillis(value: String): Long? =
+    listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+    ).firstNotNullOfOrNull { pattern ->
+        parseStrict(value, pattern, TimeZone.getTimeZone("UTC"))?.time
+    }
+
+private fun utcTimestampNow(): String =
+    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+        isLenient = false
+    }.format(Date())
+
+private fun parseStrict(value: String, pattern: String, timeZone: TimeZone): Date? {
+    val position = ParsePosition(0)
+    val parsed = SimpleDateFormat(pattern, Locale.US).apply {
+        this.timeZone = timeZone
+        isLenient = false
+    }.parse(value, position)
+    return parsed?.takeIf { position.index == value.length }
+}
+
+private fun requireValidTimeZone(timezone: String) {
+    val valid = timezone == "GMT" || TimeZone.getAvailableIDs().contains(timezone)
+    require(valid) { "Invalid timezone" }
+}

@@ -63,7 +63,7 @@ class VectorFirebaseMessagingService : FirebaseMessagingService() {
             .setContentText(message.notification?.body ?: message.data["body"] ?: "Open Project Vector")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setSound(NotificationSound.uri(this))
             .build()

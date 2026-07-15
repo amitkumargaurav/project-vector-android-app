@@ -3,6 +3,7 @@ package com.projectvector.app.bridge
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
+import android.webkit.WebView
 import com.projectvector.app.BuildConfig
 import com.projectvector.app.auth.AuthRepository
 import com.projectvector.app.auth.GoogleAuthManager
@@ -13,6 +14,7 @@ import com.projectvector.app.notifications.LocalReminderScheduler
 import com.projectvector.app.notifications.NotificationPermissionManager
 import com.projectvector.app.webview.BackPressController
 import com.projectvector.app.webview.BackPressMode
+import com.projectvector.app.webview.WebSessionCleaner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -30,6 +32,7 @@ class BridgeDispatcher @Inject constructor(
     private val callbackSender: ReactCallbackSender,
     private val googleAuthManager: GoogleAuthManager,
     private val authRepository: AuthRepository,
+    private val webSessionCleaner: WebSessionCleaner,
 ) {
     suspend fun dispatch(activity: Activity, method: String, payload: JSONObject?): JSONObject = runCatching {
         when (method) {
@@ -121,6 +124,10 @@ class BridgeDispatcher @Inject constructor(
             else -> bridgeError("Unknown bridge method: $method")
         }
     }.getOrElse { bridgeError(it.message ?: "Bridge call failed") }
+
+    fun clearCurrentWebView(webView: WebView) {
+        webSessionCleaner.clearCurrentWebView(webView)
+    }
 
     private fun requirePayload(payload: JSONObject?): JSONObject = payload ?: throw IllegalArgumentException("Payload is required")
 }

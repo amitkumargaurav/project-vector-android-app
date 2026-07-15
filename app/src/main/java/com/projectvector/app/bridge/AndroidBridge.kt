@@ -26,6 +26,9 @@ class AndroidBridge(
                 dispatcher.dispatch(activity, method, payload)
             }
             resolve(id, result)
+            if (method == "clearSecureToken" && result.optBoolean("ok")) {
+                dispatcher.clearCurrentWebView(webView)
+            }
         }
     }
 
