@@ -7,7 +7,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-    import android.view.WindowManager
+import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -74,6 +74,7 @@ import com.projectvector.app.lifecycle.ConnectivityObserver
 import com.projectvector.app.notifications.NotificationOnboardingManager
 import com.projectvector.app.notifications.NotificationOnboardingUiState
 import com.projectvector.app.notifications.NotificationPermissionManager
+import com.projectvector.app.notifications.GoalNotificationScheduler
 import com.projectvector.app.core.security.TokenStore
 import com.projectvector.app.ui.theme.VectorColors
 import com.projectvector.app.ui.theme.VectorTheme
@@ -98,6 +99,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var deepLinkParser: DeepLinkParser
     @Inject lateinit var permissionManager: NotificationPermissionManager
     @Inject lateinit var notificationOnboardingManager: NotificationOnboardingManager
+    @Inject lateinit var goalNotificationScheduler: GoalNotificationScheduler
     @Inject lateinit var webViewConfig: WebViewConfig
     @Inject lateinit var backPressController: BackPressController
 
@@ -147,6 +149,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.action == GoalNotificationScheduler.ACTION_GOAL_REMINDER_TAPPED) {
+            intent.getStringExtra(GoalNotificationScheduler.EXTRA_GOAL_ID)
+                ?.takeIf { it.isNotBlank() }
+                ?.let(goalNotificationScheduler::markNotificationTapped)
+        }
         val payload = deepLinkParser.parse(intent?.data) ?: intent?.extras?.toNotificationPayload()
         if (payload != null) callbackSender.onNotificationClicked(payload)
     }

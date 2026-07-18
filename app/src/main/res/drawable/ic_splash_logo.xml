@@ -3,9 +3,7 @@
     android:height="108dp"
     android:viewportWidth="1024"
     android:viewportHeight="1024">
-    <path
-        android:fillColor="@color/vector_500"
-        android:pathData="M0,0 H1024 V1024 H0 Z" />
+
     <!-- Inset foreground paths so the splash/adaptive icon mask does not clip them. -->
     <group
         android:pivotX="512"
@@ -14,7 +12,7 @@
         android:scaleY="0.86">
         <path
             android:fillColor="@android:color/transparent"
-            android:strokeColor="@color/vector_25"
+            android:strokeColor="@color/splash_light_foreground"
             android:strokeWidth="112"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"
@@ -22,7 +20,7 @@
 
         <path
             android:fillColor="@android:color/transparent"
-            android:strokeColor="@color/vector_25"
+            android:strokeColor="@color/splash_light_foreground"
             android:strokeWidth="54"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"

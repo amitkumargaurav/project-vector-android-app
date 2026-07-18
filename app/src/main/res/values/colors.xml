@@ -6,6 +6,8 @@
     <color name="vector_300">#AFC7FC</color>
     <color name="vector_400">#729CFA</color>
     <color name="vector_500">#2E6CF7</color>
+    <color name="splash_light_background">#F9FBFF</color>
+    <color name="splash_light_foreground">#2E6CF7</color>
     <color name="vector_600">#052E8A</color>
     <color name="vector_700">#0846D1</color>
     <color name="vector_800">#031F5C</color>
@@ -13,4 +15,5 @@
     <color name="success">#107A5B</color>
     <color name="warning">#A16207</color>
     <color name="danger">#B91C1C</color>
+    <color name="transparent">#00000000</color>
 </resources>

@@ -81,7 +81,7 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
         when (alarmKind) {
             ALARM_KIND_DAILY -> {
                 resetAggressiveRepeatCount(goal.id, today)
-                showNotification(goal)
+                showNotification(goal, ALARM_KIND_DAILY)
                 scheduleDaily(goal, timezone)
                 if (goal.shouldScheduleAggressiveRepeat(today)) {
                     scheduleAggressiveRepeat(goal)
@@ -101,7 +101,7 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
                     return
                 }
 
-                showNotification(goal)
+                showNotification(goal, ALARM_KIND_AGGRESSIVE)
                 if (repeatCount < MAX_AGGRESSIVE_REPEATS && goal.shouldScheduleAggressiveRepeat(today)) {
                     scheduleAggressiveRepeat(goal)
                 } else {
@@ -112,11 +112,16 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
     }
 
     fun onNotificationTapped(goalId: String) {
-        markAddressed(goalId, todayIsoDate(currentTimezoneId()))
-        cancelAggressiveRepeat(goalId)
+        markNotificationTapped(goalId)
         context.startActivity(Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         })
+    }
+
+    fun markNotificationTapped(goalId: String) {
+        markAddressed(goalId, todayIsoDate(currentTimezoneId()))
+        cancelAggressiveRepeat(goalId)
+        cancelDisplayedNotifications(goalId)
     }
 
     private fun scheduleDaily(goal: GoalNotificationState, timezone: String): Boolean {
@@ -170,6 +175,12 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
         alarmPendingIntent(goalId, ALARM_KIND_AGGRESSIVE, PendingIntent.FLAG_NO_CREATE)?.let(alarmManager::cancel)
     }
 
+    private fun cancelDisplayedNotifications(goalId: String) {
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
+        notificationManager.cancel(requestCode(goalId, ALARM_KIND_DAILY))
+        notificationManager.cancel(requestCode(goalId, ALARM_KIND_AGGRESSIVE))
+    }
+
     private fun alarmPendingIntent(goalId: String, alarmKind: String, flag: Int): PendingIntent? = PendingIntent.getBroadcast(
         context,
         requestCode(goalId, alarmKind),
@@ -181,12 +192,13 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
         flag or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    private fun tapPendingIntent(goalId: String): PendingIntent = PendingIntent.getBroadcast(
+    private fun tapPendingIntent(goalId: String): PendingIntent = PendingIntent.getActivity(
         context,
         requestCode(goalId, ALARM_KIND_TAP),
-        Intent(context, GoalNotificationTapReceiver::class.java).apply {
+        Intent(context, MainActivity::class.java).apply {
             action = ACTION_GOAL_REMINDER_TAPPED
             putExtra(EXTRA_GOAL_ID, goalId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
@@ -203,7 +215,7 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
         return target.timeInMillis
     }
 
-    private fun showNotification(goal: GoalNotificationState) {
+    private fun showNotification(goal: GoalNotificationState, notificationKind: String) {
         val sensitive = goal.privacyMode == PRIVACY_SENSITIVE
         val contentTitle = if (sensitive) "Vector reminder" else "Vector reminder: ${goal.title}"
         val contentText = if (sensitive) {
@@ -221,7 +233,7 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setSound(NotificationSound.uri(context))
             .build()
-        context.getSystemService(NotificationManager::class.java).notify(requestCode(goal.id, ALARM_KIND_DAILY), notification)
+        context.getSystemService(NotificationManager::class.java).notify(requestCode(goal.id, notificationKind), notification)
     }
 
     private fun canScheduleExactAlarms(): Boolean =
