@@ -28,7 +28,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -40,6 +41,10 @@
                 <data android:scheme="vector" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".browser.InAppBrowserActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <service
             android:name=".notifications.VectorFirebaseMessagingService"

@@ -43,10 +43,52 @@ object VectorBridgeInstaller {
             getSecureSession: function() { return invoke('getSecureSession'); },
             refreshAuthToken: function() { return invoke('refreshAuthToken'); },
             clearSecureToken: function() { return invoke('clearSecureToken'); },
+            saveAppState: function(payload) { return invoke('saveAppState', payload); },
+            getAppState: function() { return invoke('getAppState'); },
+            clearAppState: function() { return invoke('clearAppState'); },
             openPayment: function(payload) { return invoke('openPayment', payload); },
+            openUrl: function(payload) { return invoke('openUrl', payload); },
             share: function(payload) { return invoke('share', payload); },
             setBackPressBehavior: function(payload) { return invoke('setBackPressBehavior', payload); }
           };
+          function buildAutoStatePayload(extraState) {
+            return {
+              url: String(window.location.href || ''),
+              pathname: String(window.location.pathname || ''),
+              search: String(window.location.search || ''),
+              hash: String(window.location.hash || ''),
+              title: String(document.title || ''),
+              scrollX: Number(window.scrollX || 0),
+              scrollY: Number(window.scrollY || 0),
+              capturedAt: new Date().toISOString(),
+              state: extraState || null
+            };
+          }
+          function captureCustomState() {
+            try {
+              var capture = window.VectorMobileCallbacks && window.VectorMobileCallbacks.captureAppState;
+              return typeof capture === 'function' ? capture() : null;
+            } catch (error) {
+              return { captureError: String(error && error.message ? error.message : error) };
+            }
+          }
+          function saveNativeAppState() {
+            try {
+              Promise.resolve(captureCustomState()).then(function(extraState) {
+                window.VectorMobileBridge.saveAppState(buildAutoStatePayload(extraState));
+              });
+            } catch (_) {}
+          }
+          if (!window.__VectorMobileAutoStateInstalled) {
+            window.__VectorMobileAutoStateInstalled = true;
+            window.VectorMobileBridge.saveCurrentState = saveNativeAppState;
+            document.addEventListener('visibilitychange', function() {
+              if (document.visibilityState === 'hidden') saveNativeAppState();
+            });
+            window.addEventListener('pagehide', saveNativeAppState);
+            window.addEventListener('beforeunload', saveNativeAppState);
+            window.setInterval(saveNativeAppState, 15000);
+          }
           window.dispatchEvent(new CustomEvent('VectorMobileBridgeReady'));
         })();
     """.trimIndent()

@@ -81,6 +81,7 @@ import com.projectvector.app.ui.theme.VectorTheme
 import com.projectvector.app.webview.BackPressController
 import com.projectvector.app.webview.BackPressMode
 import com.projectvector.app.webview.WebViewConfig
+import com.projectvector.app.webview.WebStateStore
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -101,18 +102,22 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var notificationOnboardingManager: NotificationOnboardingManager
     @Inject lateinit var goalNotificationScheduler: GoalNotificationScheduler
     @Inject lateinit var webViewConfig: WebViewConfig
+    @Inject lateinit var webStateStore: WebStateStore
     @Inject lateinit var backPressController: BackPressController
 
     private val viewModel: MainViewModel by viewModels()
     private var webView: WebView? = null
+    private var restoredWebViewState: Bundle? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_SECURE,
-        )
+        restoredWebViewState = savedInstanceState?.getBundle(KEY_WEBVIEW_STATE) ?: webStateStore.restoreWebViewState()
+//        window.addFlags(
+//            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+//                WindowManager.LayoutParams.FLAG_SECURE,
+//        )
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
         connectivityObserver.start()
         handleIntent(intent)
@@ -138,6 +143,16 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         notificationOnboardingManager.onAppForegrounded(viewModel.viewModelScope)
+    }
+
+    override fun onStop() {
+        saveCurrentWebViewState()
+        super.onStop()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        saveCurrentWebViewState(outState)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onDestroy() {
@@ -200,7 +215,9 @@ class MainActivity : ComponentActivity() {
                         webView = created
                         configureWebView(created, onLoading = { loading = it }, onError = { error = it }, onCanGoBack = { canGoBack = it })
                         callbackSender.attach(created)
-                        created.loadUrl(webViewConfig.startUrl)
+                        if (!restoreWebView(created)) {
+                            created.loadUrl(webStateStore.getLastTrustedUrl()?.takeIf(webViewConfig::isTrusted) ?: webViewConfig.startUrl)
+                        }
                     }
                 },
             )
@@ -294,11 +311,13 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                if (webViewConfig.isTrusted(url)) webStateStore.saveLastTrustedUrl(url)
                 onLoading(true)
                 onCanGoBack(view.canGoBack())
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
+                if (webViewConfig.isTrusted(url)) webStateStore.saveLastTrustedUrl(url)
                 view.evaluateJavascript(VectorBridgeInstaller.script, null)
                 callbackSender.markReady()
                 onLoading(false)
@@ -326,6 +345,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun restoreWebView(webView: WebView): Boolean {
+        val state = restoredWebViewState ?: return false
+        restoredWebViewState = null
+        return runCatching {
+            webView.restoreState(state) != null
+        }.onFailure {
+            Timber.w(it, "Unable to restore WebView state")
+        }.getOrDefault(false)
+    }
+
+    private fun saveCurrentWebViewState(outState: Bundle? = null) {
+        val currentWebView = webView ?: return
+        currentWebView.url?.takeIf(webViewConfig::isTrusted)?.let(webStateStore::saveLastTrustedUrl)
+        currentWebView.evaluateJavascript(
+            "window.VectorMobileBridge && window.VectorMobileBridge.saveCurrentState && window.VectorMobileBridge.saveCurrentState();",
+            null,
+        )
+        val webBundle = Bundle()
+        val hasState = runCatching { currentWebView.saveState(webBundle) != null }
+            .onFailure { Timber.w(it, "Unable to save WebView state") }
+            .getOrDefault(false)
+        if (!hasState) return
+        outState?.putBundle(KEY_WEBVIEW_STATE, webBundle)
+        webStateStore.saveWebViewState(webBundle)
+    }
+
     private fun openExternal(url: String): Boolean {
         return try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -349,6 +394,7 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val NETWORK_LOG_TAG = "Network"
+        const val KEY_WEBVIEW_STATE = "webview_state"
     }
 }
 

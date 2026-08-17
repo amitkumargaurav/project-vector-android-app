@@ -1,10 +1,12 @@
 package com.projectvector.app.bridge
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
 import android.webkit.WebView
 import com.projectvector.app.BuildConfig
+import com.projectvector.app.browser.InAppBrowserActivity
 import com.projectvector.app.auth.AuthRepository
 import com.projectvector.app.auth.GoogleAuthManager
 import com.projectvector.app.core.security.TokenStore
@@ -14,9 +16,11 @@ import com.projectvector.app.notifications.LocalReminderScheduler
 import com.projectvector.app.notifications.NotificationPermissionManager
 import com.projectvector.app.webview.BackPressController
 import com.projectvector.app.webview.BackPressMode
+import com.projectvector.app.webview.WebStateStore
 import com.projectvector.app.webview.WebSessionCleaner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,6 +37,7 @@ class BridgeDispatcher @Inject constructor(
     private val googleAuthManager: GoogleAuthManager,
     private val authRepository: AuthRepository,
     private val webSessionCleaner: WebSessionCleaner,
+    private val webStateStore: WebStateStore,
 ) {
     suspend fun dispatch(activity: Activity, method: String, payload: JSONObject?): JSONObject = runCatching {
         when (method) {
@@ -94,12 +99,56 @@ class BridgeDispatcher @Inject constructor(
             )
             "clearSecureToken" -> {
                 authRepository.clearSecureToken()
+                webStateStore.clear()
+                JSONObject().result(JSONObject().put("cleared", true))
+            }
+            "saveAppState" -> {
+                webStateStore.saveAppState(requirePayload(payload))
+                JSONObject().result(JSONObject().put("stored", true))
+            }
+            "getAppState" -> JSONObject().result(JSONObject().apply {
+                webStateStore.getAppState()?.let { put("state", it) }
+                val updatedAt = webStateStore.getAppStateUpdatedAt()
+                if (updatedAt > 0L) put("updatedAt", updatedAt)
+            })
+            "clearAppState" -> {
+                webStateStore.clearAppState()
                 JSONObject().result(JSONObject().put("cleared", true))
             }
             "openPayment" -> {
                 val payment = requirePayload(payload).toPaymentPayload()
                 callbackSender.onPaymentFailed(reason = "Payments are handled by the web checkout flow", code = "web_checkout_required")
                 JSONObject().result(JSONObject().put("status", "web_checkout_required").put("plan", payment.plan).put("userId", payment.userId))
+            }
+            "openUrl" -> {
+                val openUrl = runCatching { requirePayload(payload).toOpenUrlPayload() }.getOrElse { error ->
+                    return@runCatching openUrlError(error.message ?: "Bridge call failed")
+                }
+                val requestId = InAppBrowserActivity.createRequestId()
+                val launchError = try {
+                    activity.startActivity(InAppBrowserActivity.createIntent(activity, openUrl.url, requestId))
+                    null
+                } catch (_: ActivityNotFoundException) {
+                    InAppBrowserActivity.cancelRequest(requestId)
+                    JSONObject()
+                        .put("ok", false)
+                        .put("data", JSONObject().put("opened", false).put("copiedTexts", JSONArray()))
+                        .put("error", "In-app browser unavailable")
+                } catch (_: SecurityException) {
+                    InAppBrowserActivity.cancelRequest(requestId)
+                    JSONObject()
+                        .put("ok", false)
+                        .put("data", JSONObject().put("opened", false).put("copiedTexts", JSONArray()))
+                        .put("error", "In-app browser unavailable")
+                }
+                launchError ?: run {
+                    val copiedTexts = InAppBrowserActivity.awaitResult(requestId)
+                    JSONObject().result(
+                        JSONObject()
+                            .put("opened", true)
+                            .put("copiedTexts", JSONArray(copiedTexts)),
+                    )
+                }
             }
             "share" -> {
                 val share = requirePayload(payload).toSharePayload()
@@ -130,4 +179,10 @@ class BridgeDispatcher @Inject constructor(
     }
 
     private fun requirePayload(payload: JSONObject?): JSONObject = payload ?: throw IllegalArgumentException("Payload is required")
+
+    private fun openUrlError(message: String): JSONObject =
+        JSONObject()
+            .put("ok", false)
+            .put("data", JSONObject().put("opened", false).put("copiedTexts", JSONArray()))
+            .put("error", message)
 }

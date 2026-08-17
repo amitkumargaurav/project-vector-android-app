@@ -3,6 +3,7 @@ package com.projectvector.app.bridge
 import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
+import java.net.URI
 import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -21,6 +22,7 @@ data class PaymentPayload(val plan: String, val userId: String)
 data class SessionPayload(val accessToken: String, val refreshToken: String?, val expiresAt: String?, val userId: String?)
 data class SharePayload(val title: String, val text: String)
 data class BackPressPayload(val mode: String)
+data class OpenUrlPayload(val url: String, val presentation: String)
 
 data class GoalNotificationState(
     val id: String,
@@ -99,6 +101,21 @@ fun JSONObject.toSessionPayload(): SessionPayload = SessionPayload(
 )
 
 fun JSONObject.toSharePayload(): SharePayload = SharePayload(title = requireString("title"), text = requireString("text"))
+
+fun JSONObject.toOpenUrlPayload(): OpenUrlPayload {
+    val url = requireString("url").trim()
+    val presentation = requireString("presentation")
+    require(presentation == "in_app_browser") { "Unsupported presentation" }
+    require(isSupportedHttpUrl(url)) { "Unsupported URL" }
+    return OpenUrlPayload(url = url, presentation = presentation)
+}
+
+fun isSupportedHttpUrl(url: String): Boolean {
+    val uri = runCatching { URI(url.trim()) }.getOrNull() ?: return false
+    val scheme = uri.scheme?.lowercase(Locale.US) ?: return false
+    return scheme in setOf("http", "https") && !uri.host.isNullOrBlank()
+}
+
 fun JSONObject.toBackPressPayload(): BackPressPayload {
     val mode = requireString("mode")
     require(mode == "default" || mode == "confirm-exit" || mode == "disabled") { "Invalid back press mode" }
