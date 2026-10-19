@@ -6,12 +6,12 @@
     <path
         android:fillColor="@color/vector_500"
         android:pathData="M0,0 H1024 V1024 H0 Z" />
-    <!-- Inset foreground paths so the splash/adaptive icon mask does not clip them. -->
+    <!-- Match the visual spacing of the legacy mipmap launcher icons. -->
     <group
         android:pivotX="512"
         android:pivotY="512"
-        android:scaleX="0.86"
-        android:scaleY="0.86">
+        android:scaleX="0.64"
+        android:scaleY="0.64">
         <path
             android:fillColor="@android:color/transparent"
             android:strokeColor="@color/vector_25"
