@@ -217,11 +217,15 @@ class GoalNotificationScheduler @Inject constructor(@ApplicationContext private 
 
     private fun showNotification(goal: GoalNotificationState, notificationKind: String) {
         val sensitive = goal.privacyMode == PRIVACY_SENSITIVE
-        val contentTitle = if (sensitive) "Vector reminder" else "Vector reminder: ${goal.title}"
-        val contentText = if (sensitive) {
-            "Open Vector to review your plan."
+        val contentTitle = if (sensitive) {
+            context.getString(R.string.goal_notification_private_title)
         } else {
-            "Open Vector to review your plan for ${goal.title}."
+            context.getString(R.string.goal_notification_title, goal.title)
+        }
+        val contentText = if (sensitive) {
+            context.getString(R.string.goal_notification_private_text)
+        } else {
+            context.getString(R.string.goal_notification_text, goal.title)
         }
         val notification = NotificationCompat.Builder(context, NotificationChannels.REMINDERS)
             .setSmallIcon(R.drawable.ic_stat_notification)

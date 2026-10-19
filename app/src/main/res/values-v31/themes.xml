@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ProjectVector" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/vector_500</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo_system_v31</item>
+        <item name="splashScreenIconSize">@dimen/vector_splash_icon_size</item>
+        <item name="postSplashScreenTheme">@style/Theme.ProjectVector.App</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@color/vector_500</item>
+        <item name="android:navigationBarColor">@color/vector_500</item>
+    </style>
+</resources>

@@ -1,0 +1,50 @@
+<resources>
+    <!-- Splash -->
+    <dimen name="vector_splash_icon_size">152dp</dimen>
+    <dimen name="splash_icon_corner_radius">34dp</dimen>
+    <dimen name="splash_wordmark_spacing">18dp</dimen>
+    <dimen name="splash_wordmark_text_size">64sp</dimen>
+    <dimen name="splash_tagline_spacing">2dp</dimen>
+    <dimen name="splash_tagline_text_size">19sp</dimen>
+    <dimen name="splash_progress_bottom_padding">53dp</dimen>
+    <dimen name="splash_progress_width">120dp</dimen>
+    <dimen name="splash_progress_height">7dp</dimen>
+    <dimen name="splash_progress_corner_radius">50dp</dimen>
+
+    <!-- Login -->
+    <dimen name="login_logo_size">94dp</dimen>
+    <dimen name="login_logo_corner_radius">22dp</dimen>
+    <dimen name="login_logo_top_padding">70dp</dimen>
+    <dimen name="login_wordmark_spacing">5dp</dimen>
+    <dimen name="login_wordmark_text_size">45sp</dimen>
+    <dimen name="login_content_horizontal_padding">35dp</dimen>
+    <dimen name="login_content_vertical_padding">50dp</dimen>
+    <dimen name="login_welcome_text_size">42sp</dimen>
+    <dimen name="login_welcome_line_height">46sp</dimen>
+    <dimen name="login_welcome_subtitle_spacing">3dp</dimen>
+    <dimen name="login_subtitle_text_size">20sp</dimen>
+    <dimen name="login_subtitle_line_height">25sp</dimen>
+    <dimen name="login_button_top_spacing">30dp</dimen>
+    <dimen name="login_button_height">62dp</dimen>
+    <dimen name="pill_corner_radius">50dp</dimen>
+    <dimen name="button_elevation">8dp</dimen>
+    <dimen name="button_pressed_elevation">3dp</dimen>
+    <dimen name="button_disabled_elevation">4dp</dimen>
+    <dimen name="login_progress_size">27dp</dimen>
+    <dimen name="login_progress_stroke_width">3dp</dimen>
+    <dimen name="google_logo_size">28dp</dimen>
+    <dimen name="login_button_icon_spacing">18dp</dimen>
+    <dimen name="login_button_text_size">20sp</dimen>
+    <dimen name="login_help_top_spacing">18dp</dimen>
+    <dimen name="login_help_text_size">14sp</dimen>
+    <dimen name="login_error_top_spacing">8dp</dimen>
+    <dimen name="login_error_text_size">13sp</dimen>
+
+    <!-- Error and browser UI -->
+    <dimen name="error_content_padding">28dp</dimen>
+    <dimen name="error_title_spacing">12dp</dimen>
+    <dimen name="error_action_spacing">20dp</dimen>
+    <dimen name="browser_progress_placeholder_height">4dp</dimen>
+    <dimen name="browser_toolbar_padding">8dp</dimen>
+    <dimen name="browser_toolbar_item_spacing">4dp</dimen>
+</resources>

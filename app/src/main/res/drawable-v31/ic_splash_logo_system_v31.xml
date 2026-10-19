@@ -1,0 +1,7 @@
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_splash_logo_white"
+    android:insetLeft="23.6111%"
+    android:insetTop="23.6111%"
+    android:insetRight="23.6111%"
+    android:insetBottom="23.6111%"
+    android:visible="true" />

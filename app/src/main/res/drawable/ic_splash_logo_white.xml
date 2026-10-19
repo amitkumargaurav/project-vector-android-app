@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+
+    <!-- Inset foreground paths so the splash/adaptive icon mask does not clip them. -->
+    <group
+        android:pivotX="512"
+        android:pivotY="512"
+        android:scaleX="0.86"
+        android:scaleY="0.86">
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="112"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M300,390 L493,820 Q512,862 534,818 L730,390" />
+
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="@android:color/white"
+            android:strokeWidth="54"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M355,245 H682 M615,178 L682,245 L615,312" />
+    </group>
+</vector>

@@ -36,3 +36,4 @@ google-services.json
 #additional documents
 *.pdf
 *.PDF
+/app/prod/

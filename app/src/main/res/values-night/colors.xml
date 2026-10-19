@@ -1,4 +1,4 @@
 <resources>
-    <color name="splash_light_background">#F9FBFF</color>
-    <color name="splash_light_foreground">#2E6CF7</color>
+    <color name="splash_light_background">@color/vector_25</color>
+    <color name="splash_light_foreground">@color/vector_500</color>
 </resources>

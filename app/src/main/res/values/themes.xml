@@ -1,14 +1,21 @@
 <resources>
     <style name="Theme.ProjectVector" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/splash_light_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenBackground">@color/vector_500</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo_white</item>
+        <item name="splashScreenIconSize">@dimen/vector_splash_icon_size</item>
         <item name="postSplashScreenTheme">@style/Theme.ProjectVector.App</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/vector_500</item>
+        <item name="android:navigationBarColor">@color/vector_500</item>
     </style>
 
     <style name="Theme.ProjectVector.App" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:statusBarColor">@color/vector_25</item>
-        <item name="android:navigationBarColor">@color/vector_25</item>
+        <!-- Match the system splash until the first Compose frame is drawn. -->
+        <item name="android:windowBackground">@color/vector_500</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/vector_500</item>
+        <item name="android:navigationBarColor">@color/vector_500</item>
     </style>
 </resources>

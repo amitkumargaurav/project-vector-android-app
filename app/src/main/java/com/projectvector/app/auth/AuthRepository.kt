@@ -1,6 +1,8 @@
 package com.projectvector.app.auth
 
+import android.content.Context
 import com.projectvector.app.BuildConfig
+import com.projectvector.app.R
 import com.projectvector.app.core.security.AuthSession
 import com.projectvector.app.core.security.TokenStore
 import com.projectvector.app.notifications.DeviceRegistrationStore
@@ -23,6 +25,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONObject
+import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.net.HttpURLConnection
 import java.util.concurrent.TimeUnit
@@ -31,6 +34,7 @@ import javax.inject.Singleton
 
 @Singleton
 class AuthRepository @Inject constructor(
+  @ApplicationContext private val context: Context,
   private val tokenStore: TokenStore,
   private val webSessionCleaner: WebSessionCleaner,
   private val webStateStore: WebStateStore,
@@ -169,7 +173,7 @@ class AuthRepository @Inject constructor(
           tokenStore.storeSession(it)
         }
       }.onFailure {
-        invalidateSession(message = "Session expired. Please sign in again.")
+        invalidateSession(message = context.getString(R.string.session_expired))
       }
     }
 

@@ -68,7 +68,7 @@ class LocalReminderScheduler @Inject constructor(@ApplicationContext private val
 class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
-        val title = inputData.getString(KEY_TITLE) ?: "Project Vector reminder"
+        val title = inputData.getString(KEY_TITLE) ?: applicationContext.getString(R.string.local_reminder_default_title)
         val daysOfWeek = inputData.getIntArray(KEY_DAYS_OF_WEEK)?.toSet().orEmpty()
         if (daysOfWeek.isNotEmpty() && currentIsoWeekday() !in daysOfWeek) {
             return Result.success()
@@ -85,7 +85,7 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         val notification = NotificationCompat.Builder(applicationContext, NotificationChannels.REMINDERS)
             .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle(title)
-            .setContentText("Open Project Vector to keep your plan moving.")
+            .setContentText(applicationContext.getString(R.string.local_reminder_text))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

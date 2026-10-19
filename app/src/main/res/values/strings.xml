@@ -1,5 +1,45 @@
 <resources>
     <string name="app_name">Vector</string>
+
+    <!-- Splash and authentication -->
+    <string name="vector_wordmark">Vector</string>
+    <string name="vector_logo_content_description">Vector logo</string>
+    <string name="splash_tagline">Turn ambition into direction</string>
+    <string name="login_welcome">Welcome</string>
+    <string name="login_subtitle">Private, adaptive planning\nfor your goals.</string>
+    <string name="login_continue_with_google">Continue with Google</string>
+    <string name="login_signing_in">Signing in…</string>
+    <string name="login_google_help">Sign in with your Google account to continue.</string>
+    <string name="login_failed">Unable to sign in</string>
+    <string name="login_google_failed">Unable to sign in with Google</string>
+    <string name="session_expired">Session expired. Please sign in again.</string>
+
+    <!-- Web content and browser -->
+    <string name="project_vector">Project Vector</string>
+    <string name="webview_load_failed">Unable to load Project Vector</string>
+    <string name="action_retry">Retry</string>
+    <string name="browser_back">Back</string>
+    <string name="browser_close">Close</string>
+
+    <!-- Notification onboarding -->
+    <string name="notification_pre_permission_title">Turn on Vector reminders</string>
+    <string name="notification_pre_permission_message">Notifications help Vector send reminders, plan reviews, and goal nudges at the right time.</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_not_now">Not now</string>
+    <string name="notification_permission_denied_title">Notifications are off</string>
+    <string name="notification_permission_denied_message">Vector works best with notifications for reminders, reviews, and goal nudges. You can turn them on in system settings.</string>
+    <string name="action_open_settings">Open settings</string>
+    <string name="action_later">Later</string>
+
+    <!-- Notifications -->
     <string name="notification_channel_reminders_name">Vector reminders</string>
     <string name="notification_channel_reminders_description">Project Vector reminders and notification routing</string>
+    <string name="goal_notification_private_title">Vector reminder</string>
+    <string name="goal_notification_title">Vector reminder: %1$s</string>
+    <string name="goal_notification_private_text">Open Vector to review your plan.</string>
+    <string name="goal_notification_text">Open Vector to review your plan for %1$s.</string>
+    <string name="local_reminder_default_title">Project Vector reminder</string>
+    <string name="local_reminder_text">Open Project Vector to keep your plan moving.</string>
+    <string name="push_notification_default_title">Project Vector</string>
+    <string name="push_notification_default_text">Open Project Vector</string>
 </resources>

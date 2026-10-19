@@ -6,8 +6,8 @@
     <color name="vector_300">#AFC7FC</color>
     <color name="vector_400">#729CFA</color>
     <color name="vector_500">#2E6CF7</color>
-    <color name="splash_light_background">#F9FBFF</color>
-    <color name="splash_light_foreground">#2E6CF7</color>
+    <color name="splash_light_background">@color/vector_25</color>
+    <color name="splash_light_foreground">@color/vector_500</color>
     <color name="vector_600">#052E8A</color>
     <color name="vector_700">#0846D1</color>
     <color name="vector_800">#031F5C</color>
@@ -15,5 +15,13 @@
     <color name="success">#107A5B</color>
     <color name="warning">#A16207</color>
     <color name="danger">#B91C1C</color>
+    <color name="vector_tagline">#536FA8</color>
+    <color name="vector_body_blue">#49649C</color>
+    <color name="vector_wordmark">#001F68</color>
+    <color name="splash_progress_track">#98C5F6</color>
+    <color name="google_blue">#4285F4</color>
+    <color name="google_green">#34A853</color>
+    <color name="google_yellow">#FBBC05</color>
+    <color name="google_red">#EA4335</color>
     <color name="transparent">#00000000</color>
 </resources>

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,10 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
+import com.projectvector.app.R
 import com.projectvector.app.bridge.isSupportedHttpUrl
-import com.projectvector.app.ui.theme.VectorColors
 import com.projectvector.app.ui.theme.VectorTheme
 import kotlinx.coroutines.CompletableDeferred
 import java.util.UUID
@@ -156,7 +158,7 @@ private fun InAppBrowserScreen(initialUrl: String, onClose: () -> Unit) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(VectorColors.Vector25)) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         BrowserTopBar(
             title = title,
             subtitle = currentUrl,
@@ -165,9 +167,9 @@ private fun InAppBrowserScreen(initialUrl: String, onClose: () -> Unit) {
             onClose = onClose,
         )
         if (loading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = VectorColors.Vector500)
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.primary)
         } else {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(dimensionResource(R.dimen.browser_progress_placeholder_height)))
         }
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -241,32 +243,32 @@ private fun BrowserTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(VectorColors.Vector25)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .padding(dimensionResource(R.dimen.browser_toolbar_padding)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TextButton(onClick = onBack, enabled = canGoBack) {
-            Text("Back")
+            Text(stringResource(R.string.browser_back))
         }
-        Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(dimensionResource(R.dimen.browser_toolbar_item_spacing)))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title.ifBlank { subtitle },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.SemiBold,
-                color = VectorColors.Vector900,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
                 text = subtitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = VectorColors.Vector700,
+                color = MaterialTheme.colorScheme.secondary,
             )
         }
-        Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(dimensionResource(R.dimen.browser_toolbar_item_spacing)))
         TextButton(onClick = onClose) {
-            Text("Close")
+            Text(stringResource(R.string.browser_close))
         }
     }
 }
